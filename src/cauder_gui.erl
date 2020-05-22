@@ -20,6 +20,11 @@ setup_gui() ->
   wxEvtHandler:connect(Frame, command_text_updated),
   setupMainPanel(Frame),
   wxFrame:show(Frame),
+    
+  %This part is added so that I will be able to test the code faster
+  loadFile("/Users/gfabbretti/Developer/erlang/cauder/examples/distributed_pong.erl"),
+
+
   loop(),
   utils_gui:stop_refs(),
   ref_stop().
@@ -501,7 +506,7 @@ openDialog(Parent) ->
       ?wxID_OK ->
         File = wxFileDialog:getPath(Dialog),
         Path = wxFileDialog:getDirectory(Dialog),        
-	ref_add(?LAST_PATH,Path),  
+	ref_add(?LAST_PATH,Path),
 	loadFile(File);
       _Other -> continue
   end,
@@ -544,13 +549,15 @@ zoomOut() ->
   wxTextCtrl:setFont(StateText, NewFont).
 
 init_system(Fun, Args, Pid, Log) ->
-  Proc = #proc{pid = cerl:c_int(Pid),
+  Proc = #proc{node = cerl:c_atom(node()),
+               pid = cerl:c_int(Pid),
                log = Log,
                exp = cerl:c_apply(Fun, Args),
                spf = cerl:var_name(Fun)},
   Procs = [Proc],
+  Nodes = [node()],
   Sched = utils_gui:sched_opt(),
-  System = #sys{sched = Sched, procs = Procs},
+  System = #sys{sched = Sched, procs = Procs, nodes = Nodes},
   ref_add(?SYSTEM, System),
   Status = ref_lookup(?STATUS),
   NewStatus = Status#status{running = true},

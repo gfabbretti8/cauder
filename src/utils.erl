@@ -314,15 +314,18 @@ pp_procs(Procs, Opts) ->
   ProcsList = [pp_proc(Proc, Opts) || Proc <- SortProcs],
   string:join(ProcsList,"\n").
 
-pp_proc(#proc{pid = Pid, hist = Hist, env = Env, exp = Exp, mail = Mail, spf = Fun}, Opts) ->
-  pp_pre(Pid, Fun) ++
+pp_proc(#proc{node= Node, pid = Pid, hist = Hist, env = Env, exp = Exp, mail = Mail, spf = Fun}, Opts) ->
+  pp_pre(Node, Pid, Fun) ++
   pp_mail(Mail, Opts) ++
   pp_hist(Hist, Opts) ++
   pp_env(Env, Exp, Opts)++
   pp(Exp, Opts).
 
-pp_pre(Pid, Fun) ->
-  "=============== " ++ pp_pid(Pid) ++ ": " ++ pp_fun(Fun)++ " ===============\n".
+pp_pre(Node, Pid, Fun) ->
+  "=============== " ++ pp_node(Node) ++ " " ++ pp_pid(Pid) ++ ": " ++ pp_fun(Fun)++ " ===============\n".
+
+pp_node(Node) ->
+  pp(Node).
 
 pp_pid(Pid) ->
   "Proc. " ++ pp(Pid).

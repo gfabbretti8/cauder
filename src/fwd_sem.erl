@@ -127,7 +127,7 @@ eval_seq_1(Env,Exp) ->
       CallArgs = cerl:call_args(Exp),
       CallModule = cerl:call_module(Exp),
       CallName = cerl:call_name(Exp),
-
+      io:format("I'm here, call-args: ~p~n call-module: ~p~n call-name:~p~n",[CallArgs, CallModule, CallName]),
       case is_exp(CallModule) of
         true ->
           {NewEnv,NewCallModule,Label} = eval_seq(Env,CallModule),
@@ -157,12 +157,23 @@ eval_seq_1(Env,Exp) ->
                 false ->
                   case {CallModule, CallName} of
                     {{c_literal,_,'erlang'},{c_literal,_,'spawn'}} ->
-                      VarNum = ref_lookup(?FRESH_VAR),
-                      ref_add(?FRESH_VAR, VarNum + 1),
-                      Var = utils:build_var(VarNum),
-                      FunName = lists:nth(2,CallArgs),
-                      FunArgs = utils:list_from_core(lists:nth(3,CallArgs)),
-                      {Env,Var,{spawn,{Var,FunName,FunArgs}}};
+                          case length(CallArgs) of
+                              3 -> %the new actor is spawned locally 
+                                  VarNum = ref_lookup(?FRESH_VAR),
+                                  ref_add(?FRESH_VAR, VarNum + 1),
+                                  Var = utils:build_var(VarNum),
+                                  FunName = lists:nth(2,CallArgs),
+                                  FunArgs = utils:list_from_core(lists:nth(3,CallArgs)),
+                                  {Env,Var,{spawn,{Var,local,FunName,FunArgs}}};
+                              4 -> % the new actor is spawned in another node
+                                  VarNum = ref_lookup(?FRESH_VAR),
+                                  ref_add(?FRESH_VAR, VarNum + 1),
+                                  Var = utils:build_var(VarNum),
+                                  Node = lists:nth(1, CallArgs),
+                                  FunName = lists:nth(3,CallArgs),
+                                  FunArgs = utils:list_from_core(lists:nth(4,CallArgs)),
+                                  {Env,Var,{spawn,{Var,Node,FunName,FunArgs}}}
+                          end;
                     {{c_literal,_,'erlang'},{c_literal, _, 'self'}} ->
                       VarNum = ref_lookup(?FRESH_VAR),
                       ref_add(?FRESH_VAR, VarNum + 1),
@@ -175,78 +186,78 @@ eval_seq_1(Env,Exp) ->
                     {{c_literal,_,'timer'},{c_literal,_,'sleep'}} ->
                       NewExp = cerl:c_atom('ok'),
                       {Env, NewExp, tau};
-                    _ ->
-			  ToggleOpts = utils_gui:toggle_opts(),
-			  AddOptimize = proplists:get_value(?COMP_OPT, ToggleOpts),
-			  CompOpts =
-			      case AddOptimize of
-				  true  -> [to_core,binary];
-				  false -> [to_core,binary, no_copt]
-			      end,
-			  Filename = cerl:concrete(CallModule),
-			  Path = ets:lookup_element(?GUI_REF,?LAST_PATH,2),
-			  File = filename:join(Path,Filename),
-			  case compile:file(File, CompOpts) of
-			      {ok, _, CoreForms} ->
-				  NoAttsCoreForms = cerl:update_c_module(CoreForms,
-									 cerl:module_name(CoreForms),
-									 cerl:module_exports(CoreForms),
-									 [],
-									 cerl:module_defs(CoreForms)),
-				  Stripper = fun(Tree) -> cerl:set_ann(Tree, []) end,
-				  CleanCoreForms = cerl_trees:map(Stripper, NoAttsCoreForms),
-				  FunDefs = cerl:module_defs(CleanCoreForms),			  
-				  ConcName = cerl:concrete(CallName),
-				  %ConcArgs = [utils:toErlang(Arg) || Arg <- CallArgs],
-				  %io:fwrite("---------------~n"),
-				  %io:write(CallName),
-				  %io:fwrite("~n---------------~n"),
-				  %FunDef = utils:fundef_lookup(CallName, FunDefs), 
-				  FunDef = utils:fundef_lookup(cerl:c_var({ConcName,cerl:call_arity(Exp)}), FunDefs),
-				  NewFunDef = utils:fundef_rename(FunDef),
-				  FunBody = cerl:fun_body(NewFunDef),
-				  FunArgs = cerl:fun_vars(NewFunDef),
-						% standard zip is used here (pretty-printer forces it)
-				  NewEnv = utils:merge_env(Env, lists:zip(FunArgs,CallArgs)), %ApplyArgs
-				  {NewEnv,FunBody,tau};
-			      error -> %for builtin
-				  ConcModule = cerl:concrete(CallModule), 
-				  ConcName = cerl:concrete(CallName),
-				  ConcArgs = [utils:toErlang(Arg) || Arg <- CallArgs],
-				  ConcExp = apply(ConcModule, ConcName, ConcArgs),
-				  StrExp = lists:flatten(io_lib:format("~p", ([ConcExp]))) ++ ".",
-				  {ok, ParsedExp, _} = erl_scan:string(StrExp),
-				  {ok, TypedExp} = erl_parse:parse_exprs(ParsedExp),
-				  CoreExp = hd([utils:toCore(Expr) || Expr <- TypedExp]),
-				  NewExp = CoreExp,
-				  {Env, NewExp, tau}
-			  end
+                      _ ->
+                          ToggleOpts = utils_gui:toggle_opts(),
+                          AddOptimize = proplists:get_value(?COMP_OPT, ToggleOpts),
+                          CompOpts =
+                              case AddOptimize of
+                                  true  -> [to_core,binary];
+                                  false -> [to_core,binary, no_copt]
+                              end,
+                          Filename = cerl:concrete(CallModule),
+                          Path = ets:lookup_element(?GUI_REF,?LAST_PATH,2),
+                          File = filename:join(Path,Filename),
+                          case compile:file(File, CompOpts) of
+                              {ok, _, CoreForms} ->
+                                  NoAttsCoreForms = cerl:update_c_module(CoreForms,
+                                                                         cerl:module_name(CoreForms),
+                                                                         cerl:module_exports(CoreForms),
+                                                                         [],
+                                                                         cerl:module_defs(CoreForms)),
+                                  Stripper = fun(Tree) -> cerl:set_ann(Tree, []) end,
+                                  CleanCoreForms = cerl_trees:map(Stripper, NoAttsCoreForms),
+                                  FunDefs = cerl:module_defs(CleanCoreForms),			  
+                                  ConcName = cerl:concrete(CallName),
+                                                %ConcArgs = [utils:toErlang(Arg) || Arg <- CallArgs],
+                                                %io:fwrite("---------------~n"),
+                                                %io:write(CallName),
+                                                %io:fwrite("~n---------------~n"),
+                                                %FunDef = utils:fundef_lookup(CallName, FunDefs), 
+                                  FunDef = utils:fundef_lookup(cerl:c_var({ConcName,cerl:call_arity(Exp)}), FunDefs),
+                                  NewFunDef = utils:fundef_rename(FunDef),
+                                  FunBody = cerl:fun_body(NewFunDef),
+                                  FunArgs = cerl:fun_vars(NewFunDef),
+                                                % standard zip is used here (pretty-printer forces it)
+                                  NewEnv = utils:merge_env(Env, lists:zip(FunArgs,CallArgs)), %ApplyArgs
+                                  {NewEnv,FunBody,tau};
+                              error -> %for builtin
+                                  ConcModule = cerl:concrete(CallModule), 
+                                  ConcName = cerl:concrete(CallName),
+                                  ConcArgs = [utils:toErlang(Arg) || Arg <- CallArgs],
+                                  ConcExp = apply(ConcModule, ConcName, ConcArgs),
+                                  StrExp = lists:flatten(io_lib:format("~p", ([ConcExp]))) ++ ".",
+                                  {ok, ParsedExp, _} = erl_scan:string(StrExp),
+                                  {ok, TypedExp} = erl_parse:parse_exprs(ParsedExp),
+                                  CoreExp = hd([utils:toCore(Expr) || Expr <- TypedExp]),
+                                  NewExp = CoreExp,
+                                  {Env, NewExp, tau}
+                          end
                   end
               end
           end
       end;
-    seq ->
-      SeqArg = cerl:seq_arg(Exp),
-      case is_exp(SeqArg) of
-        true ->
-          {NewEnv,NewSeqArg,Label} = eval_seq(Env,SeqArg),
-          NewExp = cerl:update_c_seq(Exp,
-                                     NewSeqArg,
-                                     cerl:seq_body(Exp)),
-          {NewEnv,NewExp,Label};
-        false ->
-          NewExp = cerl:seq_body(Exp),
-          {Env,NewExp,tau}
-      end;
-    'receive' ->
-        VarNum = ref_lookup(?FRESH_VAR),
-        ref_add(?FRESH_VAR, VarNum + 1),
-        Var = utils:build_var(VarNum),
-        % SubsExp = utils:substitute(Exp, Env),
-        % {Env, Var, {rec, Var, cerl:receive_clauses(SubsExp)}}
-        ReceiveClauses = cerl:receive_clauses(Exp),
-        %%ReceiveClauses2 = replace_guards(Env,ReceiveClauses),
-        {Env, Var, {rec, Var, ReceiveClauses}}
+      seq ->
+          SeqArg = cerl:seq_arg(Exp),
+          case is_exp(SeqArg) of
+              true ->
+                  {NewEnv,NewSeqArg,Label} = eval_seq(Env,SeqArg),
+                  NewExp = cerl:update_c_seq(Exp,
+                                             NewSeqArg,
+                                             cerl:seq_body(Exp)),
+                  {NewEnv,NewExp,Label};
+              false ->
+                  NewExp = cerl:seq_body(Exp),
+                  {Env,NewExp,tau}
+          end;
+      'receive' ->
+          VarNum = ref_lookup(?FRESH_VAR),
+          ref_add(?FRESH_VAR, VarNum + 1),
+          Var = utils:build_var(VarNum),
+                                                % SubsExp = utils:substitute(Exp, Env),
+                                                % {Env, Var, {rec, Var, cerl:receive_clauses(SubsExp)}}
+          ReceiveClauses = cerl:receive_clauses(Exp),
+          %%ReceiveClauses2 = replace_guards(Env,ReceiveClauses),
+          {Env, Var, {rec, Var, ReceiveClauses}}
   end.
 
 %init([_X]) -> [];
@@ -260,10 +271,10 @@ replace_guards(Bindings,Exps) ->
           %case ReducedGuard of
           %    {value,true} -> {c_clause,L,Pats,true,Exp};
           %    _Other -> {c_clause,L,Pats,ReducedGuard,Exp}
-          %end 
-        end, Exps).  
+          %end
+        end, Exps).
 
-  eval_guard(Exp) ->
+eval_guard(Exp) ->
     case cerl:type(Exp) of
 	call ->
 	    CallArgs = cerl:call_args(Exp),
@@ -329,7 +340,7 @@ eval_step(System, Pid) ->
   Procs = System#sys.procs,
   Trace = System#sys.trace,
   {Proc, RestProcs} = utils:select_proc(Procs, Pid),
-  #proc{pid = Pid, hist = Hist, env = Env, exp = Exp, mail = Mail} = Proc,
+  #proc{node = Node, pid = Pid, hist = Hist, env = Env, exp = Exp, mail = Mail} = Proc,
   {NewEnv, NewExp, Label} = eval_seq(Env, Exp),
   NewSystem = 
     case Label of
@@ -351,13 +362,18 @@ eval_step(System, Pid) ->
         TraceItem = #trace{type = ?RULE_SEND, from = Pid, to = DestPid, val = MsgValue, time = Time},
         NewTrace = [TraceItem|Trace],
         System#sys{msgs = NewMsgs, procs = [NewProc|RestProcs], trace = NewTrace};
-      {spawn, {Var, FunName, FunArgs}} ->
+      {spawn, {Var,NodeName, FunName, FunArgs}} ->
         PidNum = ref_lookup(?FRESH_PID),
         ref_add(?FRESH_PID, PidNum + 1),
         SpawnPid = cerl:c_int(PidNum),
         ArgsLen = length(FunArgs),
         FunCall = cerl:c_var({cerl:concrete(FunName), ArgsLen}),
-        SpawnProc = #proc{pid = SpawnPid,
+        SpawnProcNode = case NodeName of
+                            local -> Node;
+                            NonLocal -> NonLocal
+                        end,
+        SpawnProc = #proc{node = SpawnProcNode,
+                          pid = SpawnPid,
                           env = [],
                           exp = cerl:c_apply(FunCall,FunArgs),
                           spf = cerl:var_name(FunCall)},
@@ -437,7 +453,7 @@ matchrec(Clauses, [CurMsg|RestMsgs], AccMsgs, Env) ->
       {Bindings, ClauseBody, CurMsg, NewMsgs};
     {false, []} -> 
 	  matchrec(Clauses, RestMsgs, AccMsgs ++ [CurMsg],Env);
-      {false, [Clause|OtherClauses]} -> io:format("CauDEr: Unsupported pattern, some behaviours may be missed ~n~w~n",[Clause]),
+      {false, [Clause|_OtherClauses]} -> io:format("CauDEr: Unsupported pattern, some behaviours may be missed ~n~w~n",[Clause]),
 			matchrec(Clauses, RestMsgs, AccMsgs ++ [CurMsg],Env)		
   end.
 

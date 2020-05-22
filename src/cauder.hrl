@@ -2,6 +2,8 @@
 
 -define(ID_GAMMA, 0).
 
+-define(debug, true).
+
 -ifdef(debug).
 -define(LOG(X), io:format("{~p,~p}: ~p~n", [?MODULE, ?LINE, X])).
 -define(TO_STRING(X), lists:flatten(io_lib:format("~p",[X]))).
@@ -61,7 +63,8 @@
 
 -define(LAST_PATH, last_path).
 
--record(proc, {pid,
+-record(proc, {node,
+               pid,
                hist = [],
                log  = [],
                env  = [],
@@ -74,6 +77,7 @@
               time}).
 
 -record(sys, {sched = ?SCHED_PRIO_RANDOM,
+              nodes = [],
               msgs  = [],
               procs = [],
               trace = [],

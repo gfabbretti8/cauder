@@ -322,10 +322,10 @@ pp_proc(#proc{node= Node, pid = Pid, hist = Hist, env = Env, exp = Exp, mail = M
   pp(Exp, Opts).
 
 pp_pre(Node, Pid, Fun) ->
-  "=============== " ++ pp_node(Node) ++ " " ++ pp_pid(Pid) ++ ": " ++ pp_fun(Fun)++ " ===============\n".
+  "========== " ++ pp_node(Node) ++ " " ++ pp_pid(Pid) ++ ": " ++ pp_fun(Fun)++ " ==========\n".
 
 pp_node(Node) ->
-  pp(Node).
+  "Node: " ++ pp(Node).
 
 pp_pid(Pid) ->
   "Proc. " ++ pp(Pid).
@@ -430,12 +430,18 @@ pp_trace_item(#trace{type = Type,
                      from = From,
                      to   = To,
                      val  = Val,
-                     time = Time}) ->
+                     time = Time,
+                     start= Start}) ->
   case Type of
+    ?RULE_START   -> pp_trace_start(From, Start);
     ?RULE_SEND    -> pp_trace_send(From, To, Val, Time);
     ?RULE_SPAWN   -> pp_trace_spawn(From, To);
     ?RULE_RECEIVE -> pp_trace_receive(From, Val, Time)
   end.
+
+pp_trace_start(From, Start) ->
+    io:format("Debug: ~p~n", [Start]),
+    [pp_pid(From)," starts ",pp(Start)].
 
 pp_trace_send(From, To, Val, Time) ->
   [pp_pid(From)," sends ",pp(Val)," to ",pp_pid(To)," (",integer_to_list(Time),")"].

@@ -33,6 +33,7 @@ get_label_from_option(Option) ->
     #opt{rule = ?RULE_SEND}    -> "Send";
     #opt{rule = ?RULE_RECEIVE} -> "Receive";
     #opt{rule = ?RULE_SPAWN}   -> "Spawn";
+    #opt{rule = ?RULE_START}   -> "Start";
     #opt{rule = ?RULE_SELF}    -> "Self";
     #opt{rule = ?RULE_SCHED}   -> ?NULL_LABEL
   end.
@@ -40,6 +41,7 @@ get_label_from_option(Option) ->
 get_rule_from_button(Button) ->
   Label = wxButton:getLabel(ref_lookup(Button)),
   case Label of
+     "Start"   -> ?RULE_START;
      "Seq"     -> ?RULE_SEQ;
      "Send"    -> ?RULE_SEND;
      "Receive" -> ?RULE_RECEIVE;

@@ -25,6 +25,7 @@
 -define(RULE_SPAWN,    spawn).
 -define(RULE_SELF,     self).
 -define(RULE_SCHED,    sched).
+-define(RULE_START,    start).
 
 % ets defs
 -define(APP_REF, '_._app').
@@ -92,7 +93,8 @@
                 from,
                 to,
                 val,
-                time}).
+                time,
+                start}).
 
 -record(replay, {call,
                  main_pid,

@@ -156,7 +156,12 @@ eval_seq_1(Env,Exp) ->
                   {NewEnv,NewExp,Label};
                 false ->
                   case {CallModule, CallName} of
-                    {{c_literal,_,'erlang'},{c_literal,_,'spawn'}} ->
+                      {{c_literal,_,'slave'},{c_literal,_,'start'}} ->
+                          {c_literal, [], NodeHost} = lists:nth(1, CallArgs),
+                          {c_literal, [], NodeName} = lists:nth(2, CallArgs),
+                          NewNode = cerl:c_atom(list_to_atom(lists:concat([NodeName,'@', NodeHost]))),
+                          {Env, NewNode, {start,  NewNode}};
+                      {{c_literal,_,'erlang'},{c_literal,_,'spawn'}} ->
                           case length(CallArgs) of
                               3 -> %the new actor is spawned locally 
                                   VarNum = ref_lookup(?FRESH_VAR),
@@ -195,6 +200,7 @@ eval_seq_1(Env,Exp) ->
                                   false -> [to_core,binary, no_copt]
                               end,
                           Filename = cerl:concrete(CallModule),
+                          io:format("Debug: ~p~n~p~n~p~n", [?GUI_REF, ?LAST_PATH, Filename]),
                           Path = ets:lookup_element(?GUI_REF,?LAST_PATH,2),
                           File = filename:join(Path,Filename),
                           case compile:file(File, CompOpts) of
@@ -339,15 +345,22 @@ eval_step(System, Pid) ->
   Msgs = System#sys.msgs,
   Procs = System#sys.procs,
   Trace = System#sys.trace,
+  Nodes = System#sys.nodes,
   {Proc, RestProcs} = utils:select_proc(Procs, Pid),
   #proc{node = Node, pid = Pid, hist = Hist, env = Env, exp = Exp, mail = Mail} = Proc,
   {NewEnv, NewExp, Label} = eval_seq(Env, Exp),
-  NewSystem = 
+  NewSystem =
     case Label of
       tau ->
         NewProc = Proc#proc{hist = [{tau,Env,Exp}|Hist], env = NewEnv, exp = NewExp},
         System#sys{msgs = Msgs, procs = [NewProc|RestProcs]};
-      {self, Var} ->
+        {start, NewNode} ->
+            NewHist = [{start, NewNode}|Hist],
+            NewProc = Proc#proc{hist = NewHist, exp = NewExp},
+            TraceItem = #trace{type = ?RULE_START, from = Pid, start = NewNode},
+            NewTrace = [TraceItem|Trace],
+            System#sys{nodes = [Node|Nodes], procs = [NewProc|RestProcs], trace = NewTrace};
+        {self, Var} ->
         NewHist = [{self, Env, Exp}|Hist],
         RepExp = utils:replace(Var, Pid, NewExp),
         NewProc = Proc#proc{hist = NewHist, env = NewEnv, exp = RepExp},
@@ -397,7 +410,7 @@ eval_step(System, Pid) ->
   NewSystem.
 
 %%--------------------------------------------------------------------
-%% @doc Performs an evaluation step in message Id, given System
+%% @doc Performs an evaluation step in message Id, given Sypstem
 %% @end
 %%--------------------------------------------------------------------
 eval_sched(System, Id) ->
@@ -582,6 +595,7 @@ eval_exp_opt(Exp, Env, Mail) ->
                       eval_exp_list_opt(CallArgs, Env, Mail);
                     false ->
                       case {CallModule, CallName} of
+                        {{c_literal, _, 'slave'},{c_literal, _, 'start'}} -> #opt{rule = ?RULE_START};
                         {{c_literal, _, 'erlang'},{c_literal, _, 'spawn'}} -> #opt{rule = ?RULE_SPAWN};
                         {{c_literal, _, 'erlang'},{c_literal, _, 'self'}} -> #opt{rule = ?RULE_SELF};
                         {{c_literal, _, 'erlang'},{c_literal, _, '!'}} -> #opt{rule = ?RULE_SEND};

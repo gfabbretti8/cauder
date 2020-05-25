@@ -117,6 +117,7 @@ eval_proc_opt(RestSystem, CurProc) ->
               [] -> ?NULL_RULE;
               _ -> ?RULE_SEND
             end;
+          {start, NodeName} -> ?RULE_START;
           {spawn,_,_,SpawnPid} ->
             {SpawnProc, _RestProcs} = utils:select_proc(RestProcs, SpawnPid),
             #proc{hist = SpawnHist, mail = SpawnMail} = SpawnProc,

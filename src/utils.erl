@@ -299,8 +299,12 @@ replace(Var, SubExp, SuperExp) ->
 %% @doc Pretty-prints a given System
 %% @end
 %%--------------------------------------------------------------------
-pp_system(#sys{msgs = Msgs, procs = Procs}, Opts) ->
-  pp_msgs(Msgs) ++ "\n" ++ pp_procs(Procs, Opts).
+pp_system(#sys{msgs = Msgs, nodes = Nodes, procs = Procs}, Opts) ->
+  pp_nodes(Nodes) ++ "\n" ++ pp_msgs(Msgs) ++ "\n" ++ pp_procs(Procs, Opts).
+
+pp_nodes(Nodes) ->
+    NodesList = [pp(Node) || Node <- Nodes],
+    "Nodes: [" ++ string:join(NodesList,",") ++ "]\n".
 
 pp_msgs(Msgs) ->
   MsgsList = [pp_msg(Msg) || Msg <- Msgs],
@@ -440,7 +444,6 @@ pp_trace_item(#trace{type = Type,
   end.
 
 pp_trace_start(From, Start) ->
-    io:format("Debug: ~p~n", [Start]),
     [pp_pid(From)," starts ",pp(Start)].
 
 pp_trace_send(From, To, Val, Time) ->

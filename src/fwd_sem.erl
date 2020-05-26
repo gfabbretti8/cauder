@@ -156,6 +156,11 @@ eval_seq_1(Env,Exp) ->
                   {NewEnv,NewExp,Label};
                 false ->
                   case {CallModule, CallName} of
+                    {{c_literal,_,'erlang'},{c_literal,_,'nodes'}} ->
+                      VarNum = ref_lookup(?FRESH_VAR),
+                      ref_add(?FRESH_VAR, VarNum + 1),
+                      Var = utils:build_var(VarNum),
+                      {Env, Var, {nodes, Var}};
                       {{c_literal,_,'slave'},{c_literal,_,'start'}} ->
                           {c_literal, [], NodeHost} = lists:nth(1, CallArgs),
                           {c_literal, [], NodeName} = lists:nth(2, CallArgs),

@@ -555,7 +555,7 @@ init_system(Fun, Args, Pid, Log) ->
                exp = cerl:c_apply(Fun, Args),
                spf = cerl:var_name(Fun)},
   Procs = [Proc],
-  Nodes = [node()],
+  Nodes = [cerl:c_atom(node())],
   Sched = utils_gui:sched_opt(),
   System = #sys{sched = Sched, procs = Procs, nodes = Nodes},
   ref_add(?SYSTEM, System),

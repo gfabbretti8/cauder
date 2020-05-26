@@ -1,1 +1,1 @@
-erl -noshell -pa ebin -eval "cauder:start()." -s init stop
+erl -sname debugger -noshell -pa ebin -eval "cauder:start()." -s init stop

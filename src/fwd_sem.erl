@@ -200,7 +200,6 @@ eval_seq_1(Env,Exp) ->
                                   false -> [to_core,binary, no_copt]
                               end,
                           Filename = cerl:concrete(CallModule),
-                          io:format("Debug: ~p~n~p~n~p~n", [?GUI_REF, ?LAST_PATH, Filename]),
                           Path = ets:lookup_element(?GUI_REF,?LAST_PATH,2),
                           File = filename:join(Path,Filename),
                           case compile:file(File, CompOpts) of
@@ -359,7 +358,7 @@ eval_step(System, Pid) ->
             NewProc = Proc#proc{hist = NewHist, exp = NewExp},
             TraceItem = #trace{type = ?RULE_START, from = Pid, start = NewNode},
             NewTrace = [TraceItem|Trace],
-            System#sys{nodes = [Node|Nodes], procs = [NewProc|RestProcs], trace = NewTrace};
+            System#sys{nodes = [NewNode|Nodes], procs = [NewProc|RestProcs], trace = NewTrace};
         {self, Var} ->
         NewHist = [{self, Env, Exp}|Hist],
         RepExp = utils:replace(Var, Pid, NewExp),

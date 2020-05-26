@@ -369,6 +369,12 @@ eval_step(System, Pid) ->
         RepExp = utils:replace(Var, Pid, NewExp),
         NewProc = Proc#proc{hist = NewHist, env = NewEnv, exp = RepExp},
         System#sys{msgs = Msgs, procs = [NewProc|RestProcs]};
+      {nodes, Var} ->
+        NewHist = [{nodes, Env, Exp}|Hist],
+        NodesList = cerl:make_list(Nodes -- [Node]),
+        RepExp = utils:replace(Var, NodesList, NewExp),
+        NewProc = Proc#proc{hist = NewHist, env = NewEnv, exp = RepExp},
+        System#sys{msgs = Msgs, procs = [NewProc|RestProcs]};
       {send, DestPid, MsgValue} ->
         Time = ref_lookup(?FRESH_TIME),
         ref_add(?FRESH_TIME, Time + 1),

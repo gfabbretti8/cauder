@@ -9,7 +9,7 @@ setup_gui() ->
   Server = wx:new(),
   Frame = wxFrame:new(Server, -1, ?APP_STRING, [{size, ?FRAME_SIZE_INIT}]),
   ref_start(),
-  ref_add(?FILE_PATH, "."),
+  ref_add(?FILE_PATH, "./examples/"),
   ref_add(?STATUS, #status{}),
   ref_add(?FRAME, Frame),
   setupMenu(),
@@ -22,6 +22,7 @@ setup_gui() ->
   wxFrame:show(Frame),
     
   %This part is added so that I will be able to test the code faster
+    ref_add(?LAST_PATH,"/Users/gfabbretti/Developer/erlang/cauder/examples/distributed_pong.erl"),
   loadFile("/Users/gfabbretti/Developer/erlang/cauder/examples/distributed_pong.erl"),
 
 

@@ -22,9 +22,9 @@ setup_gui() ->
   wxFrame:show(Frame),
     
   %This part is added so that I will be able to test the code faster
-    ref_add(?LAST_PATH,"/Users/gfabbretti/Developer/erlang/cauder/examples/distributed_pong.erl"),
-  loadFile("/Users/gfabbretti/Developer/erlang/cauder/examples/distributed_pong.erl"),
-
+%    ref_add(?LAST_PATH,"/Users/gfabbretti/Developer/erlang/cauder/examples/distributed_pong.erl"),
+%  loadFile("/Users/gfabbretti/Developer/erlang/cauder/examples/dining_philo_dist.erl"),
+%
 
   loop(),
   utils_gui:stop_refs(),

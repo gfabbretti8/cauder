@@ -19,6 +19,7 @@ eval_step(System, Pid) ->
   Procs = System#sys.procs,
   Msgs = System#sys.msgs,
   Trace = System#sys.trace,
+  Nodes = System#sys.nodes,
   {Proc, RestProcs} = utils:select_proc(Procs, Pid),
   #proc{pid = Pid, hist = [CurHist|RestHist]} = Proc,
   case CurHist of
@@ -28,13 +29,22 @@ eval_step(System, Pid) ->
     {self, OldEnv, OldExp} ->
       OldProc = Proc#proc{hist = RestHist, env = OldEnv, exp = OldExp},
       System#sys{msgs = Msgs, procs = [OldProc|RestProcs]};
+    {nodes, OldEnv, OldExp} ->
+      OldProc = Proc#proc{hist = RestHist, env = OldEnv, exp = OldExp},
+      System#sys{msgs = Msgs, procs = [OldProc|RestProcs]};
     {send, OldEnv, OldExp, DestPid, {MsgValue, Time}} ->
       {_Msg, RestMsgs} = utils:select_msg(Msgs, Time),
       OldProc = Proc#proc{hist = RestHist, env = OldEnv, exp = OldExp},
       TraceItem = #trace{type = ?RULE_SEND, from = Pid, to = DestPid, val = MsgValue, time = Time},
       OldTrace = lists:delete(TraceItem, Trace),
       System#sys{msgs = RestMsgs, procs = [OldProc|RestProcs], trace = OldTrace};
-    {spawn, OldEnv, OldExp, SpawnPid} ->
+    {start, OldEnv, OldExp, SpawnNode} ->
+      OldProc = Proc#proc{hist = RestHist, env = OldEnv, exp = OldExp},
+      TraceItem = #trace{type = ?RULE_START, from = Pid, start = SpawnNode},
+      OldTrace = lists:delete(TraceItem, Trace),
+      OldNodes = Nodes -- [SpawnNode],
+      System#sys{procs = [OldProc|RestProcs], nodes = OldNodes, trace = OldTrace};
+    {spawn , OldEnv, OldExp, SpawnPid} ->
       {_SpawnProc, OldRestProcs} = utils:select_proc(RestProcs, SpawnPid),
       OldProc = Proc#proc{hist = RestHist, env = OldEnv, exp = OldExp},
       TraceItem = #trace{type = ?RULE_SPAWN, from = Pid, to = SpawnPid},
@@ -109,6 +119,7 @@ eval_proc_opt(RestSystem, CurProc) ->
         case CurHist of
           {tau,_,_} ->  ?RULE_SEQ;
           {self,_,_} -> ?RULE_SELF;
+          {nodes,_,_} -> ?RULE_NODES;
           {send,_,_, DestPid, {MsgValue, Time}} ->
             MsgList = [ M || M <- Msgs, M#msg.time == Time,
                                         M#msg.dest == DestPid,
@@ -117,7 +128,7 @@ eval_proc_opt(RestSystem, CurProc) ->
               [] -> ?NULL_RULE;
               _ -> ?RULE_SEND
             end;
-          {start, NodeName} -> ?RULE_START;
+          {start,_,_,_} -> ?RULE_START;
           {spawn,_,_,SpawnPid} ->
             {SpawnProc, _RestProcs} = utils:select_proc(RestProcs, SpawnPid),
             #proc{hist = SpawnHist, mail = SpawnMail} = SpawnProc,

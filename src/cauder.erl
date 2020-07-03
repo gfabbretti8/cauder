@@ -7,9 +7,9 @@
 
 -module(cauder).
 -export([start/0,
-         start_refs/1, stop_refs/0,
-         eval_opts/1, eval_step/2, eval_mult/3, eval_norm/1,
-         eval_roll/3, eval_roll_send/2, eval_roll_spawn/2,
+         start_refs/1, stop_refs/0, eval_opts/1,
+         eval_step/2, eval_mult/3, eval_norm/1,
+         eval_roll/3, eval_roll_send/2, eval_roll_spawn/2, eval_roll_start/2,
          eval_roll_rec/2, eval_roll_var/2, eval_replay/0]).
 
 -include("cauder.hrl").
@@ -141,6 +141,17 @@ eval_roll_spawn(System, Id) ->
     true ->
       EmptyLogSystem = utils:empty_log(System),
       RolledSystem = roll:eval_roll_spawn(EmptyLogSystem, Id),
+      FocusLog = utils:must_focus_log(RolledSystem),
+      {true, FocusLog, RolledSystem}
+  end.
+
+eval_roll_start(System, Node) ->
+  case roll:can_roll_start(System, Node) of
+    false ->
+      {false, false, System};
+    true ->
+      EmptyLogSystem = utils:empty_log(System),
+      RolledSystem = roll:eval_roll_start(EmptyLogSystem, Node),
       FocusLog = utils:must_focus_log(RolledSystem),
       {true, FocusLog, RolledSystem}
   end.

@@ -26,6 +26,7 @@
 -define(RULE_SELF,     self).
 -define(RULE_SCHED,    sched).
 -define(RULE_START,    start).
+-define(RULE_NODES,    nodes).
 
 % ets defs
 -define(APP_REF, '_._app').

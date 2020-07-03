@@ -44,7 +44,7 @@ eval_seq_1(Env,Exp) ->
       {NewEnv, NewTupleEs, Label} = eval_list(Env, cerl:tuple_es(Exp)),
       NewExp = cerl:c_tuple_skel(NewTupleEs),
       {NewEnv, NewExp, Label};
-    apply -> 
+    apply ->
       ApplyArgs = cerl:apply_args(Exp),
       ApplyOp = cerl:apply_op(Exp),
       case is_exp(ApplyArgs) of
@@ -60,7 +60,7 @@ eval_seq_1(Env,Exp) ->
           NewFunDef = utils:fundef_rename(FunDef),
           FunBody = cerl:fun_body(NewFunDef),
           FunArgs = cerl:fun_vars(NewFunDef),
-          % standard zip is used here (pretty-printer forces it)
+                                                % standard zip is used here (pretty-printer forces it)
           NewEnv = utils:merge_env(Env, lists:zip(FunArgs,ApplyArgs)),
           {NewEnv,FunBody,tau}
       end;
@@ -74,18 +74,18 @@ eval_seq_1(Env,Exp) ->
                                       cerl:case_clauses(Exp)),
           {NewEnv,NewExp,Label};
         false ->
-          %io:format("Env: ~p\n",[Env]),
-          %io:format("CaseArg: ~p\n",[CaseArg]),
+                                                %io:format("Env: ~p\n",[Env]),
+                                                %io:format("CaseArg: ~p\n",[CaseArg]),
           CaseClauses = cerl:case_clauses(Exp),
-          %io:format("CaseClauses: ~p\n",[CaseClauses]),
+                                                %io:format("CaseClauses: ~p\n",[CaseClauses]),
           CaseClauses2 = replace_guards(Env,CaseClauses),
-          %io:format("CaseClauses2: ~p\n",[CaseClauses2]),
-          %CaseClauses3 = init(CaseClauses2),
+                                                %io:format("CaseClauses2: ~p\n",[CaseClauses2]),
+                                                %CaseClauses3 = init(CaseClauses2),
           CaseArgs =
             case cerl:type(CaseArg) of
               values -> cerl:values_es(CaseArg);
               _ -> [CaseArg]
-          end,
+            end,
           case cerl_clauses:reduce(CaseClauses2,CaseArgs) of
             {true,{Clause,Bindings}} ->
               ClauseBody = cerl:clause_body(Clause),
@@ -112,11 +112,11 @@ eval_seq_1(Env,Exp) ->
               1 -> lists:zip(LetVars,[LetArg]);
               _ ->
                 FlatLetArg =
-                case cerl:type(LetArg) of
-                  values ->
-                    cerl:values_es(LetArg);
-                  _ -> LetArg
-                end,
+                  case cerl:type(LetArg) of
+                    values ->
+                      cerl:values_es(LetArg);
+                    _ -> LetArg
+                  end,
                 lists:zip(LetVars,FlatLetArg)
             end,
           NewEnv = utils:merge_env(Env, LetEnv),
@@ -127,7 +127,6 @@ eval_seq_1(Env,Exp) ->
       CallArgs = cerl:call_args(Exp),
       CallModule = cerl:call_module(Exp),
       CallName = cerl:call_name(Exp),
-      io:format("I'm here, call-args: ~p~n call-module: ~p~n call-name:~p~n",[CallArgs, CallModule, CallName]),
       case is_exp(CallModule) of
         true ->
           {NewEnv,NewCallModule,Label} = eval_seq(Env,CallModule),
@@ -161,29 +160,29 @@ eval_seq_1(Env,Exp) ->
                       ref_add(?FRESH_VAR, VarNum + 1),
                       Var = utils:build_var(VarNum),
                       {Env, Var, {nodes, Var}};
-                      {{c_literal,_,'slave'},{c_literal,_,'start'}} ->
-                          {c_literal, [], NodeHost} = lists:nth(1, CallArgs),
-                          {c_literal, [], NodeName} = lists:nth(2, CallArgs),
-                          NewNode = cerl:c_atom(list_to_atom(lists:concat([NodeName,'@', NodeHost]))),
-                          {Env, NewNode, {start,  NewNode}};
-                      {{c_literal,_,'erlang'},{c_literal,_,'spawn'}} ->
-                          case length(CallArgs) of
-                              3 -> %the new actor is spawned locally 
-                                  VarNum = ref_lookup(?FRESH_VAR),
-                                  ref_add(?FRESH_VAR, VarNum + 1),
-                                  Var = utils:build_var(VarNum),
-                                  FunName = lists:nth(2,CallArgs),
-                                  FunArgs = utils:list_from_core(lists:nth(3,CallArgs)),
-                                  {Env,Var,{spawn,{Var,local,FunName,FunArgs}}};
-                              4 -> % the new actor is spawned in another node
-                                  VarNum = ref_lookup(?FRESH_VAR),
-                                  ref_add(?FRESH_VAR, VarNum + 1),
-                                  Var = utils:build_var(VarNum),
-                                  Node = lists:nth(1, CallArgs),
-                                  FunName = lists:nth(3,CallArgs),
-                                  FunArgs = utils:list_from_core(lists:nth(4,CallArgs)),
-                                  {Env,Var,{spawn,{Var,Node,FunName,FunArgs}}}
-                          end;
+                    {{c_literal,_,'slave'},{c_literal,_,'start'}} ->
+                      {c_literal, [], NodeHost} = lists:nth(1, CallArgs),
+                      {c_literal, [], NodeName} = lists:nth(2, CallArgs),
+                      NewNode = cerl:c_atom(list_to_atom(lists:concat([NodeName,'@', NodeHost]))),
+                      {Env, NewNode, {start,  NewNode}};
+                    {{c_literal,_,'erlang'},{c_literal,_,'spawn'}} ->
+                      case length(CallArgs) of
+                        3 -> %the new actor is spawned locally 
+                          VarNum = ref_lookup(?FRESH_VAR),
+                          ref_add(?FRESH_VAR, VarNum + 1),
+                          Var = utils:build_var(VarNum),
+                          FunName = lists:nth(2,CallArgs),
+                          FunArgs = utils:list_from_core(lists:nth(3,CallArgs)),
+                          {Env,Var,{spawn,{Var,local,FunName,FunArgs}}};
+                        4 -> % the new actor is spawned in another node
+                          VarNum = ref_lookup(?FRESH_VAR),
+                          ref_add(?FRESH_VAR, VarNum + 1),
+                          Var = utils:build_var(VarNum),
+                          Node = lists:nth(1, CallArgs),
+                          FunName = lists:nth(3,CallArgs),
+                          FunArgs = utils:list_from_core(lists:nth(4,CallArgs)),
+                          {Env,Var,{spawn,{Var,Node,FunName,FunArgs}}}
+                      end;
                     {{c_literal,_,'erlang'},{c_literal, _, 'self'}} ->
                       VarNum = ref_lookup(?FRESH_VAR),
                       ref_add(?FRESH_VAR, VarNum + 1),
@@ -196,97 +195,97 @@ eval_seq_1(Env,Exp) ->
                     {{c_literal,_,'timer'},{c_literal,_,'sleep'}} ->
                       NewExp = cerl:c_atom('ok'),
                       {Env, NewExp, tau};
-                      _ ->
-                          ToggleOpts = utils_gui:toggle_opts(),
-                          AddOptimize = proplists:get_value(?COMP_OPT, ToggleOpts),
-                          CompOpts =
-                              case AddOptimize of
-                                  true  -> [to_core,binary];
-                                  false -> [to_core,binary, no_copt]
-                              end,
-                          Filename = cerl:concrete(CallModule),
-                          Path = ets:lookup_element(?GUI_REF,?LAST_PATH,2),
-                          File = filename:join(Path,Filename),
-                          case compile:file(File, CompOpts) of
-                              {ok, _, CoreForms} ->
-                                  NoAttsCoreForms = cerl:update_c_module(CoreForms,
-                                                                         cerl:module_name(CoreForms),
-                                                                         cerl:module_exports(CoreForms),
-                                                                         [],
-                                                                         cerl:module_defs(CoreForms)),
-                                  Stripper = fun(Tree) -> cerl:set_ann(Tree, []) end,
-                                  CleanCoreForms = cerl_trees:map(Stripper, NoAttsCoreForms),
-                                  FunDefs = cerl:module_defs(CleanCoreForms),			  
-                                  ConcName = cerl:concrete(CallName),
+                    _ ->
+                      ToggleOpts = utils_gui:toggle_opts(),
+                      AddOptimize = proplists:get_value(?COMP_OPT, ToggleOpts),
+                      CompOpts =
+                        case AddOptimize of
+                          true  -> [to_core,binary];
+                          false -> [to_core,binary, no_copt]
+                        end,
+                      Filename = cerl:concrete(CallModule),
+                      Path = ets:lookup_element(?GUI_REF,?LAST_PATH,2),
+                      File = filename:join(Path,Filename),
+                      case compile:file(File, CompOpts) of
+                        {ok, _, CoreForms} ->
+                          NoAttsCoreForms = cerl:update_c_module(CoreForms,
+                                                                 cerl:module_name(CoreForms),
+                                                                 cerl:module_exports(CoreForms),
+                                                                 [],
+                                                                 cerl:module_defs(CoreForms)),
+                          Stripper = fun(Tree) -> cerl:set_ann(Tree, []) end,
+                          CleanCoreForms = cerl_trees:map(Stripper, NoAttsCoreForms),
+                          FunDefs = cerl:module_defs(CleanCoreForms),			  
+                          ConcName = cerl:concrete(CallName),
                                                 %ConcArgs = [utils:toErlang(Arg) || Arg <- CallArgs],
                                                 %io:fwrite("---------------~n"),
                                                 %io:write(CallName),
                                                 %io:fwrite("~n---------------~n"),
                                                 %FunDef = utils:fundef_lookup(CallName, FunDefs), 
-                                  FunDef = utils:fundef_lookup(cerl:c_var({ConcName,cerl:call_arity(Exp)}), FunDefs),
-                                  NewFunDef = utils:fundef_rename(FunDef),
-                                  FunBody = cerl:fun_body(NewFunDef),
-                                  FunArgs = cerl:fun_vars(NewFunDef),
+                          FunDef = utils:fundef_lookup(cerl:c_var({ConcName,cerl:call_arity(Exp)}), FunDefs),
+                          NewFunDef = utils:fundef_rename(FunDef),
+                          FunBody = cerl:fun_body(NewFunDef),
+                          FunArgs = cerl:fun_vars(NewFunDef),
                                                 % standard zip is used here (pretty-printer forces it)
-                                  NewEnv = utils:merge_env(Env, lists:zip(FunArgs,CallArgs)), %ApplyArgs
-                                  {NewEnv,FunBody,tau};
-                              error -> %for builtin
-                                  ConcModule = cerl:concrete(CallModule), 
-                                  ConcName = cerl:concrete(CallName),
-                                  ConcArgs = [utils:toErlang(Arg) || Arg <- CallArgs],
-                                  ConcExp = apply(ConcModule, ConcName, ConcArgs),
-                                  StrExp = lists:flatten(io_lib:format("~p", ([ConcExp]))) ++ ".",
-                                  {ok, ParsedExp, _} = erl_scan:string(StrExp),
-                                  {ok, TypedExp} = erl_parse:parse_exprs(ParsedExp),
-                                  CoreExp = hd([utils:toCore(Expr) || Expr <- TypedExp]),
-                                  NewExp = CoreExp,
-                                  {Env, NewExp, tau}
-                          end
+                          NewEnv = utils:merge_env(Env, lists:zip(FunArgs,CallArgs)), %ApplyArgs
+                          {NewEnv,FunBody,tau};
+                        error -> %for builtin
+                          ConcModule = cerl:concrete(CallModule), 
+                          ConcName = cerl:concrete(CallName),
+                          ConcArgs = [utils:toErlang(Arg) || Arg <- CallArgs],
+                          ConcExp = apply(ConcModule, ConcName, ConcArgs),
+                          StrExp = lists:flatten(io_lib:format("~p", ([ConcExp]))) ++ ".",
+                          {ok, ParsedExp, _} = erl_scan:string(StrExp),
+                          {ok, TypedExp} = erl_parse:parse_exprs(ParsedExp),
+                          CoreExp = hd([utils:toCore(Expr) || Expr <- TypedExp]),
+                          NewExp = CoreExp,
+                          {Env, NewExp, tau}
+                      end
                   end
               end
           end
       end;
-      seq ->
-          SeqArg = cerl:seq_arg(Exp),
-          case is_exp(SeqArg) of
-              true ->
-                  {NewEnv,NewSeqArg,Label} = eval_seq(Env,SeqArg),
-                  NewExp = cerl:update_c_seq(Exp,
-                                             NewSeqArg,
-                                             cerl:seq_body(Exp)),
-                  {NewEnv,NewExp,Label};
-              false ->
-                  NewExp = cerl:seq_body(Exp),
-                  {Env,NewExp,tau}
-          end;
-      'receive' ->
-          VarNum = ref_lookup(?FRESH_VAR),
-          ref_add(?FRESH_VAR, VarNum + 1),
-          Var = utils:build_var(VarNum),
+    seq ->
+      SeqArg = cerl:seq_arg(Exp),
+      case is_exp(SeqArg) of
+        true ->
+          {NewEnv,NewSeqArg,Label} = eval_seq(Env,SeqArg),
+          NewExp = cerl:update_c_seq(Exp,
+                                     NewSeqArg,
+                                     cerl:seq_body(Exp)),
+          {NewEnv,NewExp,Label};
+        false ->
+          NewExp = cerl:seq_body(Exp),
+          {Env,NewExp,tau}
+      end;
+    'receive' ->
+      VarNum = ref_lookup(?FRESH_VAR),
+      ref_add(?FRESH_VAR, VarNum + 1),
+      Var = utils:build_var(VarNum),
                                                 % SubsExp = utils:substitute(Exp, Env),
                                                 % {Env, Var, {rec, Var, cerl:receive_clauses(SubsExp)}}
-          ReceiveClauses = cerl:receive_clauses(Exp),
-          %%ReceiveClauses2 = replace_guards(Env,ReceiveClauses),
-          {Env, Var, {rec, Var, ReceiveClauses}}
+      ReceiveClauses = cerl:receive_clauses(Exp),
+      %%ReceiveClauses2 = replace_guards(Env,ReceiveClauses),
+      {Env, Var, {rec, Var, ReceiveClauses}}
   end.
 
-%init([_X]) -> [];
-%nit([A|R]) -> [A|init(R)].
+                                                %init([_X]) -> [];
+                                                %nit([A|R]) -> [A|init(R)].
 
 replace_guards(Bindings,Exps) ->
   lists:map(fun({c_clause,L,Pats,Guard,Exp}) -> 
-          Guard2 = utils:replace_all(Bindings,Guard),
-          Guard3 = eval_guard(Guard2),
-          {c_clause,L,Pats,Guard3,Exp}
-          %case ReducedGuard of
-          %    {value,true} -> {c_clause,L,Pats,true,Exp};
-          %    _Other -> {c_clause,L,Pats,ReducedGuard,Exp}
-          %end
-        end, Exps).
+                Guard2 = utils:replace_all(Bindings,Guard),
+                Guard3 = eval_guard(Guard2),
+                {c_clause,L,Pats,Guard3,Exp}
+                                                %case ReducedGuard of
+                                                %    {value,true} -> {c_clause,L,Pats,true,Exp};
+                                                %    _Other -> {c_clause,L,Pats,ReducedGuard,Exp}
+                                                %end
+            end, Exps).
 
 eval_guard(Exp) ->
-    case cerl:type(Exp) of
-	call ->
+  case cerl:type(Exp) of
+    call ->
 	    CallArgs = cerl:call_args(Exp),
 	    CallModule = cerl:call_module(Exp),
 	    CallName = cerl:call_name(Exp),
@@ -299,47 +298,47 @@ eval_guard(Exp) ->
 	    {ok, ParsedExp, _} = erl_scan:string(StrExp),
 	    {ok, TypedExp} = erl_parse:parse_exprs(ParsedExp),
 	    hd([utils:toCore(Expr) || Expr <- TypedExp]);
-	'let' -> 
-	    %io:format("1)~w~n",[Exp]),
+    'let' -> 
+                                                %io:format("1)~w~n",[Exp]),
 	    LetArg = cerl:let_arg(Exp),
 	    case is_exp(LetArg) of
-		true ->
-		    NewLetArg=eval_guard(LetArg),
-		    NewExp = cerl:update_c_let(Exp,
-					       cerl:let_vars(Exp),
-					       NewLetArg,
-					       cerl:let_body(Exp)),
-		    eval_guard(NewExp);
-		false ->
-		    LetVars = cerl:let_vars(Exp), 
-		    LetEnv =
-			case cerl:let_arity(Exp) of
-			    1 -> lists:zip(LetVars,[LetArg]);
-			    _ ->
-				FlatLetArg =
-				    case cerl:type(LetArg) of
-					values ->
-					    cerl:values_es(LetArg);
-					_ -> LetArg
-				    end,
-				lists:zip(LetVars,FlatLetArg)
-			end,
-		    NewExp = cerl:let_body(Exp),
-		    %io:format("2)~w~n",[NewExp]),
-		    %io:format("2e)~w~n",[LetEnv]),
-		    SubstExp=utils:replace_all(LetEnv,NewExp),
-		    %io:format("3)~w~n",[SubstExp]),
-		    %StrExp = lists:flatten(io_lib:format("~p", ([SubstExp]))) ++ ".",
-		    %%%io:format("ConcModule: ~p\nConcName: ~p\nConcArgs: ~p\nConcExp: ~p\nStrExp: ~p\n",[ConcModule,ConcName,ConcArgs,ConcExp,StrExp]),
-		    %{ok, ParsedExp, _} = erl_scan:string(StrExp),
-		    %{ok, TypedExp} = erl_parse:parse_exprs(ParsedExp),
-		    %TypExpr=hd([utils:toCore(Expr) || Expr <- TypedExp]),
-		    %FinalExp=eval_guard(TypExpr),
-		    %io:format("4)~w~n",[FinalExp]),
-		    eval_guard(SubstExp)
-		end;
-	_Other -> Exp
-    end.
+        true ->
+          NewLetArg=eval_guard(LetArg),
+          NewExp = cerl:update_c_let(Exp,
+                                     cerl:let_vars(Exp),
+                                     NewLetArg,
+                                     cerl:let_body(Exp)),
+          eval_guard(NewExp);
+        false ->
+          LetVars = cerl:let_vars(Exp), 
+          LetEnv =
+            case cerl:let_arity(Exp) of
+              1 -> lists:zip(LetVars,[LetArg]);
+              _ ->
+                FlatLetArg =
+                  case cerl:type(LetArg) of
+                    values ->
+                      cerl:values_es(LetArg);
+                    _ -> LetArg
+                  end,
+                lists:zip(LetVars,FlatLetArg)
+            end,
+          NewExp = cerl:let_body(Exp),
+                                                %io:format("2)~w~n",[NewExp]),
+                                                %io:format("2e)~w~n",[LetEnv]),
+          SubstExp=utils:replace_all(LetEnv,NewExp),
+                                                %io:format("3)~w~n",[SubstExp]),
+                                                %StrExp = lists:flatten(io_lib:format("~p", ([SubstExp]))) ++ ".",
+%%%io:format("ConcModule: ~p\nConcName: ~p\nConcArgs: ~p\nConcExp: ~p\nStrExp: ~p\n",[ConcModule,ConcName,ConcArgs,ConcExp,StrExp]),
+                                                %{ok, ParsedExp, _} = erl_scan:string(StrExp),
+                                                %{ok, TypedExp} = erl_parse:parse_exprs(ParsedExp),
+                                                %TypExpr=hd([utils:toCore(Expr) || Expr <- TypedExp]),
+                                                %FinalExp=eval_guard(TypExpr),
+                                                %io:format("4)~w~n",[FinalExp]),
+          eval_guard(SubstExp)
+      end;
+    _Other -> Exp
+  end.
 
 %%--------------------------------------------------------------------
 %% @doc Performs an evaluation step in process Pid, given System
@@ -358,13 +357,13 @@ eval_step(System, Pid) ->
       tau ->
         NewProc = Proc#proc{hist = [{tau,Env,Exp}|Hist], env = NewEnv, exp = NewExp},
         System#sys{msgs = Msgs, procs = [NewProc|RestProcs]};
-        {start, NewNode} ->
-            NewHist = [{start, NewNode}|Hist],
-            NewProc = Proc#proc{hist = NewHist, exp = NewExp},
-            TraceItem = #trace{type = ?RULE_START, from = Pid, start = NewNode},
-            NewTrace = [TraceItem|Trace],
-            System#sys{nodes = [NewNode|Nodes], procs = [NewProc|RestProcs], trace = NewTrace};
-        {self, Var} ->
+      {start, NewNode} ->
+        NewHist = [{start, Env, Exp, NewNode}|Hist],
+        NewProc = Proc#proc{hist = NewHist, exp = NewExp},
+        TraceItem = #trace{type = ?RULE_START, from = Pid, start = NewNode},
+        NewTrace = [TraceItem|Trace],
+        System#sys{nodes = [NewNode|Nodes], procs = [NewProc|RestProcs], trace = NewTrace};
+      {self, Var} ->
         NewHist = [{self, Env, Exp}|Hist],
         RepExp = utils:replace(Var, Pid, NewExp),
         NewProc = Proc#proc{hist = NewHist, env = NewEnv, exp = RepExp},
@@ -392,8 +391,8 @@ eval_step(System, Pid) ->
         ArgsLen = length(FunArgs),
         FunCall = cerl:c_var({cerl:concrete(FunName), ArgsLen}),
         SpawnProcNode = case NodeName of
-                            local -> Node;
-                            NonLocal -> NonLocal
+                          local -> Node;
+                          NonLocal -> NonLocal
                         end,
         SpawnProc = #proc{node = SpawnProcNode,
                           pid = SpawnPid,
@@ -464,35 +463,35 @@ matchrec(_, [], _, _) ->
   no_match;
 matchrec(Clauses, [CurMsg|RestMsgs], AccMsgs, Env) ->
   {MsgValue, _MsgTime} = CurMsg,
-  %io:format("matchrec (MsgValue): ~p~n",[MsgValue]),
-  %io:format("matchrec (Clauses): ~p~n",[Clauses]),
+                                                %io:format("matchrec (MsgValue): ~p~n",[MsgValue]),
+                                                %io:format("matchrec (Clauses): ~p~n",[Clauses]),
   %%preprocessing is used to propagate matching bindings to guards
   NewClauses = preprocessing_clauses(Clauses,MsgValue,Env),
-  %io:format("matchrec (NewClauses): ~p~n",[NewClauses]),
+                                                %io:format("matchrec (NewClauses): ~p~n",[NewClauses]),
   case cerl_clauses:reduce(NewClauses, [MsgValue]) of
     {true, {Clause, Bindings}} -> 
       ClauseBody = cerl:clause_body(Clause),
       NewMsgs =  AccMsgs ++ RestMsgs,
       {Bindings, ClauseBody, CurMsg, NewMsgs};
     {false, []} -> 
-	  matchrec(Clauses, RestMsgs, AccMsgs ++ [CurMsg],Env);
-      {false, [Clause|_OtherClauses]} -> io:format("CauDEr: Unsupported pattern, some behaviours may be missed ~n~w~n",[Clause]),
-			matchrec(Clauses, RestMsgs, AccMsgs ++ [CurMsg],Env)		
+      matchrec(Clauses, RestMsgs, AccMsgs ++ [CurMsg],Env);
+    {false, [Clause|_OtherClauses]} -> io:format("CauDEr: Unsupported pattern, some behaviours may be missed ~n~w~n",[Clause]),
+                                       matchrec(Clauses, RestMsgs, AccMsgs ++ [CurMsg],Env)		
   end.
 
 preprocessing_clauses(Clauses,Msg,Env) ->
   lists:map(fun({c_clause,L,Pats,Guard,Exp}) -> 
-  	%io:format("Clauses: ~p~n",[Clauses]),
-  	%io:format("match (Pats/[Msg]) ~p~n~p~n",[Pats,[Msg]]),
-  	%io:format("--result: ~p~n",[cerl_clauses:match_list(Pats,[Msg])]),
-    case cerl_clauses:match_list(Pats,[Msg]) of
-      {true,Bindings} -> Guard2 = utils:replace_all(Bindings++Env,Guard),
-      					 %io:format("calling eval_guard (Bindings/Guard/Guard2): ~n~p~n~p~n~p~n",[Bindings++Env,Guard,Guard2]),
-                         Guard3 = eval_guard(Guard2),
-                         {c_clause,L,Pats,Guard3,Exp};
-      _ -> {c_clause,L,Pats,Guard,Exp}
-    end
-  end, Clauses).
+                                                %io:format("Clauses: ~p~n",[Clauses]),
+                                                %io:format("match (Pats/[Msg]) ~p~n~p~n",[Pats,[Msg]]),
+                                                %io:format("--result: ~p~n",[cerl_clauses:match_list(Pats,[Msg])]),
+                case cerl_clauses:match_list(Pats,[Msg]) of
+                  {true,Bindings} -> Guard2 = utils:replace_all(Bindings++Env,Guard),
+                                                %io:format("calling eval_guard (Bindings/Guard/Guard2): ~n~p~n~p~n~p~n",[Bindings++Env,Guard,Guard2]),
+                                     Guard3 = eval_guard(Guard2),
+                                     {c_clause,L,Pats,Guard3,Exp};
+                  _ -> {c_clause,L,Pats,Guard,Exp}
+                end
+            end, Clauses).
 
 %%--------------------------------------------------------------------
 %% @doc Gets the evaluation options for a given System
@@ -615,10 +614,10 @@ eval_exp_opt(Exp, Env, Mail) ->
               end
           end;
         'receive' ->
-          % SubsExp = utils:substitute(Exp, Env),
-          % ?LOG("Exp: " ++ ?TO_STRING(Exp) ++ "\n" ++
-          %      "SUB: " ++ ?TO_STRING(SubsExp)),
-          % ReceiveClauses = cerl:receive_clauses(SubsExp),
+                                                % SubsExp = utils:substitute(Exp, Env),
+                                                % ?LOG("Exp: " ++ ?TO_STRING(Exp) ++ "\n" ++
+                                                %      "SUB: " ++ ?TO_STRING(SubsExp)),
+                                                % ReceiveClauses = cerl:receive_clauses(SubsExp),
           ReceiveClauses = cerl:receive_clauses(Exp),
           case matchrec(ReceiveClauses, Mail, Env) of
             no_match ->
@@ -638,7 +637,7 @@ eval_exp_list_opt([CurExp|RestExp], Env, Mail) ->
   end.
 
 ref_add(Id, Ref) ->
-    ets:insert(?APP_REF, {Id, Ref}).
+  ets:insert(?APP_REF, {Id, Ref}).
 
 ref_lookup(Id) ->
-    ets:lookup_element(?APP_REF, Id, 2).
+  ets:lookup_element(?APP_REF, Id, 2).

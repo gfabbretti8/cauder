@@ -20,10 +20,10 @@ setup_gui() ->
   wxEvtHandler:connect(Frame, command_text_updated),
   setupMainPanel(Frame),
   wxFrame:show(Frame),
-    
+
   %This part is added so that I will be able to test the code faster
-%    ref_add(?LAST_PATH,"/Users/gfabbretti/Developer/erlang/cauder/examples/distributed_pong.erl"),
-%  loadFile("/Users/gfabbretti/Developer/erlang/cauder/examples/dining_philo_dist.erl"),
+  ref_add(?LAST_PATH,"/Users/gfabbretti/Developer/erlang/cauder/examples/distributed_pong.erl"),
+  loadFile("/Users/gfabbretti/Developer/erlang/cauder/examples/distributed_pong.erl"),
 %
 
   loop(),
@@ -266,8 +266,6 @@ setupAutoPanel(Parent) ->
 
   wxSizer:add(SchedButtonSizer, NormalizeButton),
 
-
-
   wxSizer:add(BorderSizer, AutoSizer, [{flag, ?wxALL bor ?wxALIGN_CENTER_HORIZONTAL}, {border, 10}]),
   wxWindow:setSizer(AutoPanel, BorderSizer),
   AutoPanel.
@@ -277,6 +275,7 @@ setupRollPanel(Parent) ->
   RollPidStaticText = wxStaticText:new(RollPanel, ?wxID_ANY, "Pid:"),
   RollStepStaticText = wxStaticText:new(RollPanel, ?wxID_ANY, "Steps:"),
   RollSpawnIdStaticText = wxStaticText:new(RollPanel, ?wxID_ANY, "Pid:"),
+  RollStartIdStaticText = wxStaticText:new(RollPanel, ?wxID_ANY, "Start:"),
   RollSendIdStaticText  = wxStaticText:new(RollPanel, ?wxID_ANY, "MsgId:"),
   RollRecIdStaticText   = wxStaticText:new(RollPanel, ?wxID_ANY, "MsgId:"),
   RollVarIdStaticText = wxStaticText:new(RollPanel, ?wxID_ANY, "Name:"),
@@ -285,7 +284,9 @@ setupRollPanel(Parent) ->
                                                                {size, {40, -1}}]),
   RollStepTextCtrl = wxTextCtrl:new(RollPanel, ?ROLL_STEP_TEXT, [{style,?wxBOTTOM},
                                                                  {size, {40, -1}}]),
-  RollSpawnIdText = wxTextCtrl:new(RollPanel, ?ROLL_SPAWN_ID_TEXT, [{style, ?wxBOTTOM},
+  RollSpawnIdText = wxTextCtrl:new(RollPanel, ?ROLL_SPAWN_ID_TEXT, [{style,?wxBOTTOM},
+                                                                    {size, {40, -1}}]),
+  RollStartIdText = wxTextCtrl:new(RollPanel, ?ROLL_START_ID_TEXT, [{style,?wxBOTTOM},
                                                                     {size, {40, -1}}]),
   RollSendIdText  = wxTextCtrl:new(RollPanel, ?ROLL_SEND_ID_TEXT, [{style, ?wxBOTTOM},
                                                                   {size, {40, -1}}]),
@@ -297,6 +298,7 @@ setupRollPanel(Parent) ->
   ref_add(?ROLL_PID_TEXT, RollPidTextCtrl),
   ref_add(?ROLL_STEP_TEXT, RollStepTextCtrl),
   ref_add(?ROLL_SPAWN_ID_TEXT, RollSpawnIdText),
+  ref_add(?ROLL_START_ID_TEXT, RollStartIdText),
   ref_add(?ROLL_SEND_ID_TEXT, RollSendIdText),
   ref_add(?ROLL_REC_ID_TEXT, RollRecIdText),
   ref_add(?ROLL_VAR_ID_TEXT, RollVarIdText),
@@ -307,6 +309,9 @@ setupRollPanel(Parent) ->
   RollSpawnButton = wxButton:new(RollPanel, ?ROLL_SPAWN_BUTTON,
                                [{label, "Roll spawn"},
                                 {size, {85, -1}}]),
+  RollStartButton = wxButton:new(RollPanel, ?ROLL_START_BUTTON,
+                                 [{label, "Roll start"},
+                                  {size, {85, -1}}]),
   RollSendButton = wxButton:new(RollPanel, ?ROLL_SEND_BUTTON,
                                [{label, "Roll send"},
                                 {size, {85, -1}}]),
@@ -318,11 +323,13 @@ setupRollPanel(Parent) ->
                                 {size, {85, -1}}]),
   wxButton:disable(RollButton),
   wxButton:disable(RollSpawnButton),
+  wxButton:disable(RollStartButton),
   wxButton:disable(RollSendButton),
   wxButton:disable(RollRecButton),
   wxButton:disable(RollVarButton),
   ref_add(?ROLL_BUTTON, RollButton),
   ref_add(?ROLL_SPAWN_BUTTON, RollSpawnButton),
+  ref_add(?ROLL_START_BUTTON, RollStartButton),
   ref_add(?ROLL_SEND_BUTTON, RollSendButton),
   ref_add(?ROLL_REC_BUTTON, RollRecButton),
   ref_add(?ROLL_VAR_BUTTON, RollVarButton),
@@ -330,6 +337,7 @@ setupRollPanel(Parent) ->
   RollSizer = wxBoxSizer:new(?wxVERTICAL),
   RollNSizer = wxBoxSizer:new(?wxHORIZONTAL),
   RollSpawnSizer = wxBoxSizer:new(?wxHORIZONTAL),
+  RollStartSizer = wxBoxSizer:new(?wxHORIZONTAL),
   RollSendSizer = wxBoxSizer:new(?wxHORIZONTAL),
   RollRecSizer = wxBoxSizer:new(?wxHORIZONTAL),
   RollVarSizer = wxBoxSizer:new(?wxHORIZONTAL),
@@ -347,6 +355,8 @@ setupRollPanel(Parent) ->
   wxSizer:addSpacer(RollSizer, 10),
   wxSizer:add(RollSizer, RollSpawnSizer, [{flag, ?wxALIGN_RIGHT}]),
   wxSizer:addSpacer(RollSizer, 10),
+  wxSizer:add(RollSizer, RollStartSizer, [{flag, ?wxALIGN_RIGHT}]),
+  wxSizer:addSpacer(RollSizer, 10),
   wxSizer:add(RollSizer, RollSendSizer, [{flag, ?wxALIGN_RIGHT}]),
   wxSizer:addSpacer(RollSizer, 10),
   wxSizer:add(RollSizer, RollRecSizer, [{flag, ?wxALIGN_RIGHT}]),
@@ -357,6 +367,11 @@ setupRollPanel(Parent) ->
   wxSizer:add(RollSpawnSizer, RollSpawnIdText),
   wxSizer:addSpacer(RollSpawnSizer, 5),
   wxSizer:add(RollSpawnSizer, RollSpawnButton),
+
+  wxSizer:add(RollStartSizer, RollStartIdStaticText),
+  wxSizer:add(RollStartSizer, RollStartIdText),
+  wxSizer:addSpacer(RollStartSizer, 5),
+  wxSizer:add(RollStartSizer, RollStartButton),
 
   wxSizer:add(RollSendSizer, RollSendIdStaticText),
   wxSizer:add(RollSendSizer, RollSendIdText),
@@ -725,6 +740,18 @@ eval_roll_spawn() ->
       {CanRoll, IdText, FocusLog}
   end.
 
+eval_roll_start() ->
+  System = ref_lookup(?SYSTEM),
+  IdTextCtrl = ref_lookup(?ROLL_START_ID_TEXT),
+  IdText = wxTextCtrl:getValue(IdTextCtrl),
+  case IdText of
+    error -> {false, ok, false};
+    _ ->
+      {CanRoll, FocusLog, NewSystem} = cauder:eval_roll_start(System, cerl:c_atom(IdText)),
+      ref_add(?SYSTEM, NewSystem),
+      {CanRoll, IdText, FocusLog}
+  end.
+
 eval_roll_rec() ->
   System = ref_lookup(?SYSTEM),
   IdTextCtrl = ref_lookup(?ROLL_REC_ID_TEXT),
@@ -830,6 +857,13 @@ loop() ->
           focus_roll_log(MustFocus),
           refresh(HasRolled),
           loop();
+      #wx{id = ?ROLL_START_BUTTON, event = #wxCommand{type = command_button_clicked}} ->
+        utils_gui:disable_all_buttons(),
+        {HasRolled, StartId, MustFocus} = eval_roll_start(),
+        utils_gui:sttext_roll_start(HasRolled, StartId),
+        focus_roll_log(MustFocus),
+        refresh(HasRolled),
+        loop();
         #wx{id = ?ROLL_REC_BUTTON, event = #wxCommand{type = command_button_clicked}} ->
           utils_gui:disable_all_buttons(),
           {HasRolled, RecId, MustFocus} = eval_roll_rec(),

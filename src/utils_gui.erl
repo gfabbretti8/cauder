@@ -5,7 +5,7 @@
          set_choices/1, disable_all_buttons/0, enable_perm_buttons/0,
          clear_texts/0, stop_refs/0, update_status_text/1,
          sttext_single/1, sttext_mult/2, sttext_norm/1,
-         sttext_roll/2, sttext_roll_send/2, sttext_roll_spawn/2,
+         sttext_roll/2, sttext_roll_send/2, sttext_roll_spawn/2, sttext_roll_start/2,
          sttext_roll_rec/2, sttext_roll_var/2, sttext_comp/0,
          prev_font_size/1, next_font_size/1, sort_opts/1, toggle_opts/0,
          pp_marked_text/2, sched_opt/0]).
@@ -34,6 +34,7 @@ get_label_from_option(Option) ->
     #opt{rule = ?RULE_RECEIVE} -> "Receive";
     #opt{rule = ?RULE_SPAWN}   -> "Spawn";
     #opt{rule = ?RULE_START}   -> "Start";
+    #opt{rule = ?RULE_NODES}   -> "Nodes";
     #opt{rule = ?RULE_SELF}    -> "Self";
     #opt{rule = ?RULE_SCHED}   -> ?NULL_LABEL
   end.
@@ -42,6 +43,7 @@ get_rule_from_button(Button) ->
   Label = wxButton:getLabel(ref_lookup(Button)),
   case Label of
      "Start"   -> ?RULE_START;
+     "Nodes"   -> ?RULE_NODES;
      "Seq"     -> ?RULE_SEQ;
      "Send"    -> ?RULE_SEND;
      "Receive" -> ?RULE_RECEIVE;
@@ -121,6 +123,7 @@ disable_all_buttons() ->
   NormalizeButton = ref_lookup(?NORMALIZE_BUTTON),
   RollButton      = ref_lookup(?ROLL_BUTTON),
   RollSpawnButton = ref_lookup(?ROLL_SPAWN_BUTTON),
+  RollStartButton = ref_lookup(?ROLL_START_BUTTON),
   RollSendButton  = ref_lookup(?ROLL_SEND_BUTTON),
   RollRecButton   = ref_lookup(?ROLL_REC_BUTTON),
   RollVarButton   = ref_lookup(?ROLL_VAR_BUTTON),
@@ -133,6 +136,7 @@ disable_all_buttons() ->
   wxButton:disable(NormalizeButton),
   wxButton:disable(RollButton),
   wxButton:disable(RollSpawnButton),
+  wxButton:disable(RollStartButton),
   wxButton:disable(RollSendButton),
   wxButton:disable(RollRecButton),
   wxButton:disable(RollVarButton).
@@ -140,11 +144,13 @@ disable_all_buttons() ->
 enable_perm_buttons() ->
   RollButton      = ref_lookup(?ROLL_BUTTON),
   RollSpawnButton = ref_lookup(?ROLL_SPAWN_BUTTON),
+  RollStartButton = ref_lookup(?ROLL_START_BUTTON),
   RollSendButton  = ref_lookup(?ROLL_SEND_BUTTON),
   RollRecButton   = ref_lookup(?ROLL_REC_BUTTON),
   RollVarButton   = ref_lookup(?ROLL_VAR_BUTTON),
   wxButton:enable(RollButton),
   wxButton:enable(RollSpawnButton),
+  wxButton:enable(RollStartButton),
   wxButton:enable(RollSendButton),
   wxButton:enable(RollRecButton),
   wxButton:enable(RollVarButton).
@@ -217,6 +223,13 @@ sttext_roll_spawn(false, _) ->
   update_status_text(FullStr);
 sttext_roll_spawn(true, Id) ->
   FullStr = "Rolled back spawning of process with Pid " ++ Id,
+  update_status_text(FullStr).
+
+sttext_roll_start(false, _) ->
+  FullStr = "Could not roll back the spawning of that node",
+  update_status_text(FullStr);
+sttext_roll_start(true, Id) ->
+  FullStr = "Rolled back spawning of the node " ++ Id,
   update_status_text(FullStr).
 
 sttext_roll_rec(false, _) ->

@@ -8,7 +8,7 @@
          build_var/1, build_var/2, pid_exists/2,
          select_proc/2, select_msg/2,
          select_proc_with_time/2, select_proc_with_send/2,
-         select_proc_with_spawn/2, select_proc_with_rec/2,
+         select_proc_with_spawn/2, select_proc_with_start/2 ,select_proc_with_rec/2,
          select_proc_with_var/2, list_from_core/1,
          update_env/2, merge_env/2,
          replace/3, replace_all/2, pp_system/2, pp_trace/1, pp_roll_log/1,
@@ -17,7 +17,8 @@
          filter_options/2, filter_procs_opts/1,
          has_fwd/1, has_bwd/1, has_norm/1, has_var/2,
          is_queue_minus_msg/3, topmost_rec/1, last_msg_rest/1,
-         gen_log_send/4, gen_log_spawn/2, empty_log/1, must_focus_log/1,
+         gen_log_send/4, gen_log_spawn/2, gen_log_start/2,
+         empty_log/1, must_focus_log/1,
          extract_replay_data/1, extract_pid_log_data/2, get_mod_name/1]).
 
 -include("cauder.hrl").
@@ -181,7 +182,20 @@ select_proc_with_spawn(Procs, Pid) ->
   ProcWithSpawn.
 
 %%--------------------------------------------------------------------
-%% @doc Returns the processes that contain a spawn item in history
+%% @doc Returns the processes that contain a start item in history
+%% with pid Pid
+%% @end
+%%--------------------------------------------------------------------
+select_proc_with_start(Procs, Node) ->
+  ProcWithStart =
+    lists:filter( fun (Proc) ->
+                      Hist = Proc#proc.hist,
+                      has_start(Hist, Node)
+                  end, Procs),
+  ProcWithStart.
+
+%%--------------------------------------------------------------------
+%% @doc Returns the processes that contain a rec item in history
 %% with pid Pid
 %% @end
 %%--------------------------------------------------------------------
@@ -614,6 +628,10 @@ has_spawn([], _) -> false;
 has_spawn([{spawn,_,_,Pid}|_], Pid) -> true;
 has_spawn([_|RestHist], Pid) -> has_spawn(RestHist, Pid).
 
+has_start([], _) -> false;
+has_start([{start,_,_,Node}|_], Node) -> true;
+has_start([_|RestHist], Node) -> has_start(RestHist, Node).
+
 has_rec([], _) -> false;
 has_rec([{rec,_,_, {_, Time},_}|_], Time) -> true;
 has_rec([_|RestHist], Time) -> has_rec(RestHist, Time).
@@ -648,6 +666,9 @@ gen_log_send(Pid, OtherPid, MsgValue, Time) ->
 gen_log_spawn(_Pid, OtherPid) ->
   % [["Roll SPAWN of ",pp_pid(OtherPid)," from ",pp_pid(Pid)]].
   [["Roll spawn of ",pp_pid(OtherPid)]].
+
+gen_log_start(_Pid, SpawnNode) ->
+  [["Roll start of ",pp_pid(SpawnNode)]].
 
 empty_log(System) ->
   System#sys{roll = []}.

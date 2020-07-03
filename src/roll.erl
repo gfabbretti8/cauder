@@ -5,9 +5,9 @@
 
 -module(roll).
 -export([can_roll/2, can_roll_send/2, can_roll_spawn/2,
-         can_roll_rec/2, can_roll_var/2,
+         can_roll_rec/2, can_roll_var/2, can_roll_start/2,
          eval_step/2, eval_roll_send/2, eval_roll_spawn/2,
-         eval_roll_rec/2, eval_roll_var/2]).
+         eval_roll_start/2, eval_roll_rec/2, eval_roll_var/2]).
 
 -include("cauder.hrl").
 
@@ -27,7 +27,7 @@ can_roll(#sys{procs = Procs}, Pid) ->
 eval_step(System, Pid) ->
   Procs = System#sys.procs,
   {Proc, _} = utils:select_proc(Procs, Pid),
-  [CurHist|_]= Proc#proc.hist,  
+  [CurHist|_]= Proc#proc.hist,
   case CurHist of
     {send, _, _, DestPid, {MsgValue, Time}} ->
       NewLog = System#sys.roll ++ utils:gen_log_send(Pid, DestPid, MsgValue, Time),
@@ -39,6 +39,11 @@ eval_step(System, Pid) ->
       LogSystem = System#sys{roll = NewLog},
       ?LOG("ROLLing back SPAWN of " ++ ?TO_STRING(cerl:concrete(SpawnPid))),
       roll_spawn(LogSystem, Pid, SpawnPid);
+    {start, _, _, SpawnNode} ->
+      NewLog = System#sys.roll ++ utils:gen_log_start(Pid, SpawnNode),
+      LogSystem = System#sys{roll = NewLog},
+      ?LOG("Rolling back START of " ++ ?TO_STRING(cerl:concrete(SpawnNode))),
+      roll_start(LogSystem, Pid, SpawnNode);
     _ ->
       RollOpts = roll_opts(System, Pid),
       cauder:eval_step(System, hd(RollOpts))
@@ -74,6 +79,20 @@ roll_spawn(System, Pid, OtherPid) ->
       cauder:eval_step(System, hd(SpawnOpts))
   end.
 
+roll_start(System, Pid, SpawnNode) ->
+  StartOpts = lists:filter(fun (X) -> X#opt.rule == ?RULE_START end,
+                           roll_opts(System, Pid)),
+  io:format("StartOpts = ~p~n", [StartOpts]),
+  case StartOpts of
+    [] ->
+      NewSystem = eval_step(System, SpawnNode),
+      roll_spawn(NewSystem, Pid, SpawnNode);
+    _ ->
+      cauder:eval_step(System, hd(StartOpts))
+  end.
+
+
+
 can_roll_send(System, Id) ->
   Procs = System#sys.procs,
   ProcsWithSend = utils:select_proc_with_send(Procs, Id),
@@ -86,6 +105,14 @@ can_roll_spawn(System, SpawnPid) ->
   Procs = System#sys.procs,
   ProcsWithSpawn = utils:select_proc_with_spawn(Procs, SpawnPid),
   case length(ProcsWithSpawn) of
+    0 -> false;
+    _ -> true
+  end.
+
+can_roll_start(System, SpawnNode) ->
+  Procs = System#sys.procs,
+  ProcsWithStart = utils:select_proc_with_start(Procs, SpawnNode),
+  case length(ProcsWithStart) of
     0 -> false;
     _ -> true
   end.
@@ -119,6 +146,13 @@ eval_roll_spawn(System, SpawnPid) ->
   Proc = hd(ProcsWithSpawn),
   Pid = Proc#proc.pid,
   eval_roll_until_spawn(System, Pid, SpawnPid).
+
+eval_roll_start(System, SpawnNode) ->
+  Procs = System#sys.procs,
+  ProcsWithStart = utils:select_proc_with_start(Procs, SpawnNode),
+  Proc = hd(ProcsWithStart),
+  Pid = Proc#proc.pid,
+  eval_roll_until_start(System, Pid, SpawnNode).
 
 eval_roll_rec(System, Id) ->
   Procs = System#sys.procs,
@@ -156,6 +190,18 @@ eval_roll_until_spawn(System, Pid, SpawnPid) ->
     _ ->
       NewSystem = eval_step(System, Pid),
       eval_roll_until_spawn(NewSystem, Pid, SpawnPid)
+  end.
+
+eval_roll_until_start(System, Pid, SpawnNode) ->
+  Procs = System#sys.procs,
+  {Proc, _} = utils:select_proc(Procs, Pid),
+  [CurHist|_]= Proc#proc.hist,
+  case CurHist of
+    {start,_,_,SpawnNode} ->
+      eval_step(System, Pid);
+    _ ->
+      NewSystem = eval_step(System, Pid),
+      eval_roll_until_start(NewSystem, Pid, SpawnNode)
   end.
 
 eval_roll_until_rec(System, Pid, Id) ->

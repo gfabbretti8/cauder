@@ -43,8 +43,9 @@
 
 -define(ROLL_SEND_BUTTON,  426).
 -define(ROLL_SPAWN_BUTTON, 427).
--define(ROLL_REC_BUTTON,   428).
--define(ROLL_VAR_BUTTON,   429).
+-define(ROLL_START_BUTTON, 428).
+-define(ROLL_REC_BUTTON,   429).
+-define(ROLL_VAR_BUTTON,   430).
 
 -define(SYSTEM,         500).
 -define(STATUS,         501).
@@ -72,6 +73,7 @@
 -define(ROLL_SPAWN_ID_TEXT, 561).
 -define(ROLL_REC_ID_TEXT,   562).
 -define(ROLL_VAR_ID_TEXT,   563).
+-define(ROLL_START_ID_TEXT, 564).
 
 -define(PAGEPOS_CODE,  0).
 -define(PAGEPOS_STATE, 1).

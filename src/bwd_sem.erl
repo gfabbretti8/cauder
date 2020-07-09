@@ -44,7 +44,7 @@ eval_step(System, Pid) ->
       OldTrace = lists:delete(TraceItem, Trace),
       OldNodes = Nodes -- [SpawnNode],
       System#sys{procs = [OldProc|RestProcs], nodes = OldNodes, trace = OldTrace};
-    {spawn , OldEnv, OldExp, SpawnPid} ->
+    {spawn , OldEnv, OldExp,_SpawnNode, SpawnPid} ->
       {_SpawnProc, OldRestProcs} = utils:select_proc(RestProcs, SpawnPid),
       OldProc = Proc#proc{hist = RestHist, env = OldEnv, exp = OldExp},
       TraceItem = #trace{type = ?RULE_SPAWN, from = Pid, to = SpawnPid},
@@ -129,7 +129,7 @@ eval_proc_opt(RestSystem, CurProc) ->
               _ -> ?RULE_SEND
             end;
           {start,_,_,_} -> ?RULE_START;
-          {spawn,_,_,SpawnPid} ->
+          {spawn,_,_,_,SpawnPid} ->
             {SpawnProc, _RestProcs} = utils:select_proc(RestProcs, SpawnPid),
             #proc{hist = SpawnHist, mail = SpawnMail} = SpawnProc,
             case {SpawnHist, SpawnMail} of

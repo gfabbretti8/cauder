@@ -401,7 +401,7 @@ eval_step(System, Pid) ->
                           env = [],
                           exp = cerl:c_apply(FunCall,FunArgs),
                           spf = cerl:var_name(FunCall)},
-        NewHist = [{spawn, Env, Exp, SpawnPid}|Hist],
+        NewHist = [{spawn, Env, Exp, SpawnProcNode, SpawnPid}|Hist],
         RepExp = utils:replace(Var, SpawnPid, NewExp),
         NewProc = Proc#proc{hist = NewHist, env = NewEnv, exp = RepExp},
         TraceItem = #trace{type = ?RULE_SPAWN, from = Pid, to = SpawnPid},

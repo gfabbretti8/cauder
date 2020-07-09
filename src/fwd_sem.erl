@@ -164,10 +164,12 @@ eval_seq_1(Env,Exp) ->
                       {c_literal, [], NodeHost} = lists:nth(1, CallArgs),
                       {c_literal, [], NodeName} = lists:nth(2, CallArgs),
                       NewNode = cerl:c_atom(list_to_atom(lists:concat([NodeName,'@', NodeHost]))),
-                      {Env, NewNode, {start,  NewNode}};
+                      Ok = cerl:c_atom(ok),
+                      NewExp = cerl:c_tuple([Ok,NewNode]),
+                      {Env, NewExp, {start,  NewNode}};
                     {{c_literal,_,'erlang'},{c_literal,_,'spawn'}} ->
                       case length(CallArgs) of
-                        3 -> %the new actor is spawned locally 
+                        3 -> %the new actor is spawned locally
                           VarNum = ref_lookup(?FRESH_VAR),
                           ref_add(?FRESH_VAR, VarNum + 1),
                           Var = utils:build_var(VarNum),

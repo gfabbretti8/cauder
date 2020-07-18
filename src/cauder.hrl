@@ -26,6 +26,7 @@
 -define(RULE_SELF,     self).
 -define(RULE_SCHED,    sched).
 -define(RULE_START,    start).
+-define(RULE_NODE,     node).
 -define(RULE_NODES,    nodes).
 
 % ets defs
@@ -92,7 +93,9 @@
 
 -record(trace, {type,
                 from,
+                fromNode,
                 to,
+                toNode,
                 val,
                 time,
                 start}).

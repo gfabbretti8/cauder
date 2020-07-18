@@ -160,6 +160,11 @@ eval_seq_1(Env,Exp) ->
                       ref_add(?FRESH_VAR, VarNum + 1),
                       Var = utils:build_var(VarNum),
                       {Env, Var, {nodes, Var}};
+                    {{c_literal,_,'erlang'},{c_literal,_,'node'}} ->
+                      VarNum = ref_lookup(?FRESH_VAR),
+                      ref_add(?FRESH_VAR, VarNum +1),
+                      Var = utils:build_var(VarNum),
+                      {Env, Var, {node, Var}};
                     {{c_literal,_,'slave'},{c_literal,_,'start'}} ->
                       {c_literal, [], NodeHost} = lists:nth(1, CallArgs),
                       {c_literal, [], NodeName} = lists:nth(2, CallArgs),
@@ -362,12 +367,15 @@ eval_step(System, Pid) ->
       {start, NewNode} ->
         NewHist = [{start, Env, Exp, NewNode}|Hist],
         NewProc = Proc#proc{hist = NewHist, exp = NewExp},
-        TraceItem = #trace{type = ?RULE_START, from = Pid, start = NewNode},
-        NewTrace = [TraceItem|Trace],
-        System#sys{nodes = [NewNode|Nodes], procs = [NewProc|RestProcs], trace = NewTrace};
+        System#sys{nodes = [NewNode|Nodes], procs = [NewProc|RestProcs]};
       {self, Var} ->
         NewHist = [{self, Env, Exp}|Hist],
         RepExp = utils:replace(Var, Pid, NewExp),
+        NewProc = Proc#proc{hist = NewHist, env = NewEnv, exp = RepExp},
+        System#sys{msgs = Msgs, procs = [NewProc|RestProcs]};
+      {node, Var} ->
+        NewHist = [{node, Env, Exp}|Hist],
+        RepExp = utils:replace(Var, Node, NewExp),
         NewProc = Proc#proc{hist = NewHist, env = NewEnv, exp = RepExp},
         System#sys{msgs = Msgs, procs = [NewProc|RestProcs]};
       {nodes, Var} ->
@@ -379,11 +387,13 @@ eval_step(System, Pid) ->
       {send, DestPid, MsgValue} ->
         Time = ref_lookup(?FRESH_TIME),
         ref_add(?FRESH_TIME, Time + 1),
+        {DestProc, _} = utils:select_proc(Procs,DestPid),
+        DestNode = DestProc#proc.node,
         NewMsg = #msg{dest = DestPid, val = MsgValue, time = Time},
         NewMsgs = [NewMsg|Msgs],
         NewHist = [{send, Env, Exp, DestPid, {MsgValue, Time}}|Hist],
         NewProc = Proc#proc{hist = NewHist, env = NewEnv, exp = NewExp},
-        TraceItem = #trace{type = ?RULE_SEND, from = Pid, to = DestPid, val = MsgValue, time = Time},
+        TraceItem = #trace{type = ?RULE_SEND, from = Pid, to = DestPid,fromNode = Node, toNode = DestNode, val = MsgValue, time = Time},
         NewTrace = [TraceItem|Trace],
         System#sys{msgs = NewMsgs, procs = [NewProc|RestProcs], trace = NewTrace};
       {spawn, {Var,NodeName, FunName, FunArgs}} ->
@@ -404,7 +414,7 @@ eval_step(System, Pid) ->
         NewHist = [{spawn, Env, Exp, SpawnProcNode, SpawnPid}|Hist],
         RepExp = utils:replace(Var, SpawnPid, NewExp),
         NewProc = Proc#proc{hist = NewHist, env = NewEnv, exp = RepExp},
-        TraceItem = #trace{type = ?RULE_SPAWN, from = Pid, to = SpawnPid},
+        TraceItem = #trace{type = ?RULE_SPAWN, from = Pid, fromNode = Node, to = SpawnPid, toNode = SpawnProcNode},
         NewTrace = [TraceItem|Trace],
         System#sys{msgs = Msgs, procs = [NewProc|[SpawnProc|RestProcs]], trace = NewTrace};
       {rec, Var, ReceiveClauses} ->
@@ -610,6 +620,8 @@ eval_exp_opt(Exp, Env, Mail) ->
                         {{c_literal, _, 'erlang'},{c_literal, _, 'spawn'}} -> #opt{rule = ?RULE_SPAWN};
                         {{c_literal, _, 'erlang'},{c_literal, _, 'self'}} -> #opt{rule = ?RULE_SELF};
                         {{c_literal, _, 'erlang'},{c_literal, _, '!'}} -> #opt{rule = ?RULE_SEND};
+                        {{c_literal, _, 'erlang'},{c_literal, _, 'node'}} -> #opt{rule = ?RULE_NODE};
+                        {{c_literal, _, 'erlang'},{c_literal, _, 'nodes'}} -> #opt{rule = ?RULE_NODES};
                         _ -> #opt{rule = ?RULE_SEQ}
                       end
                   end

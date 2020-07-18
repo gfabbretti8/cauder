@@ -34,6 +34,7 @@ get_label_from_option(Option) ->
     #opt{rule = ?RULE_RECEIVE} -> "Receive";
     #opt{rule = ?RULE_SPAWN}   -> "Spawn";
     #opt{rule = ?RULE_START}   -> "Start";
+    #opt{rule = ?RULE_NODE}    -> "Node";
     #opt{rule = ?RULE_NODES}   -> "Nodes";
     #opt{rule = ?RULE_SELF}    -> "Self";
     #opt{rule = ?RULE_SCHED}   -> ?NULL_LABEL
@@ -48,7 +49,8 @@ get_rule_from_button(Button) ->
      "Send"    -> ?RULE_SEND;
      "Receive" -> ?RULE_RECEIVE;
      "Spawn"   -> ?RULE_SPAWN;
-     "Self"    -> ?RULE_SELF
+     "Self"    -> ?RULE_SELF;
+     "Node"    -> ?RULE_NODE
   end.
 
 button_to_option(Button) ->
@@ -67,6 +69,7 @@ button_to_option(Button) ->
 
 option_to_button_label(Option) ->
   #opt{sem = Sem, type = Type} = Option,
+  io:format("Options: ~p~n", [Option]),
   Label = get_label_from_option(Option),
   Button =
     case Sem of

@@ -17,7 +17,7 @@
          filter_options/2, filter_procs_opts/1,
          has_fwd/1, has_bwd/1, has_norm/1, has_var/2,
          is_queue_minus_msg/3, topmost_rec/1, last_msg_rest/1,
-         gen_log_send/4, gen_log_spawn/2, gen_log_start/2,
+         gen_log_send/5, gen_log_spawn/3, gen_log_start/2,
          empty_log/1, must_focus_log/1,
          extract_replay_data/1, extract_pid_log_data/2, get_mod_name/1]).
 
@@ -396,8 +396,14 @@ pp_hist_2({tau,_,_}) ->
   "seq";
 pp_hist_2({self,_,_}) ->
   "self";
-pp_hist_2({spawn,_,_,Pid}) ->
+pp_hist_2({node,_,_}) ->
+  "node";
+pp_hist_2({nodes,_,_}) ->
+  "nodes";
+pp_hist_2({spawn,_,_,_,Pid}) ->
   "spawn(" ++ [{?CAUDER_GREEN, pp(Pid)}] ++ ")";
+pp_hist_2({start,_,_,SpawnedNode}) ->
+  "start(" ++ pp(SpawnedNode) ++ ")";
 pp_hist_2({send,_,_,_,{Value,Time}}) ->
   "send(" ++ pp(Value) ++ "," ++ [{?wxRED, integer_to_list(Time)}] ++ ")";
 pp_hist_2({rec,_,_,{Value,Time},_}) ->
@@ -446,25 +452,32 @@ pp_trace(#sys{trace = Trace}) ->
 
 pp_trace_item(#trace{type = Type,
                      from = From,
+                     fromNode = FromNode,
                      to   = To,
+                     toNode = ToNode,
                      val  = Val,
                      time = Time,
                      start= Start}) ->
   case Type of
     ?RULE_START   -> pp_trace_start(From, Start);
-    ?RULE_SEND    -> pp_trace_send(From, To, Val, Time);
-    ?RULE_SPAWN   -> pp_trace_spawn(From, To);
+    ?RULE_SEND    -> pp_trace_send(From, To, ToNode, FromNode, Val, Time);
+    ?RULE_SPAWN   -> pp_trace_spawn(From, FromNode, To, ToNode);
     ?RULE_RECEIVE -> pp_trace_receive(From, Val, Time)
   end.
 
 pp_trace_start(From, Start) ->
     [pp_pid(From)," starts ",pp(Start)].
 
-pp_trace_send(From, To, Val, Time) ->
-  [pp_pid(From)," sends ",pp(Val)," to ",pp_pid(To)," (",integer_to_list(Time),")"].
+pp_trace_send(From, To, FromNode, ToNode, Val, Time) when FromNode == ToNode ->
+  [pp_pid(From)," sends ",pp(Val)," to ",pp_pid(To)," (",integer_to_list(Time),")"];
+pp_trace_send(From, To, _, ToNode, Val, Time) ->
+  [pp_pid(From)," sends ",pp(Val)," to ",pp_pid(To)," on ",pp(ToNode)," (",integer_to_list(Time),")"].
 
-pp_trace_spawn(From, To) ->
-  [pp_pid(From)," spawns ",pp_pid(To)].
+pp_trace_spawn(From, Node, To, Node) ->%when the node is the same we omit the info
+  [pp_pid(From)," spawns ",pp_pid(To)];
+pp_trace_spawn(From, _, To, Node) ->
+  [pp_pid(From), " spawns ",pp_pid(To)," on ",pp(Node)].
+
 
 pp_trace_receive(From, Val, Time) ->
   [pp_pid(From)," receives ",pp(Val)," (",integer_to_list(Time),")"].
@@ -660,15 +673,15 @@ rel_binds(Env, Exp) ->
                   lists:member(VarName,RelVars)
                 end, Env).
 
-gen_log_send(Pid, OtherPid, MsgValue, Time) ->
-[["Roll send from ",pp_pid(Pid), " of ",pp(MsgValue), " to ",pp_pid(OtherPid), " (",integer_to_list(Time),")"]].
+gen_log_send(Pid, OtherPid, Node, MsgValue, Time) ->
+[["Roll send from ",pp_pid(Pid), " of ",pp(MsgValue), " to ",pp_pid(OtherPid)," on ", pp(Node), " (",integer_to_list(Time),")"]].
 
-gen_log_spawn(_Pid, OtherPid) ->
+gen_log_spawn(_Pid, Node,OtherPid) ->
   % [["Roll SPAWN of ",pp_pid(OtherPid)," from ",pp_pid(Pid)]].
-  [["Roll spawn of ",pp_pid(OtherPid)]].
+  [["Roll spawn of ",pp_pid(OtherPid)," on ",pp(Node)]].
 
 gen_log_start(_Pid, SpawnNode) ->
-  [["Roll start of ",pp_pid(SpawnNode)]].
+  [["Roll start of ",pp(SpawnNode)]].
 
 empty_log(System) ->
   System#sys{roll = []}.

@@ -30,12 +30,14 @@ eval_step(System, Pid) ->
   [CurHist|_]= Proc#proc.hist,
   case CurHist of
     {send, _, _, DestPid, {MsgValue, Time}} ->
-      NewLog = System#sys.roll ++ utils:gen_log_send(Pid, DestPid, MsgValue, Time),
+      {DestProc, _} = utils:select_proc(Procs, DestPid),
+      DestNode = DestProc#proc.node,
+      NewLog = System#sys.roll ++ utils:gen_log_send(Pid, DestPid, DestNode, MsgValue, Time),
       LogSystem = System#sys{roll = NewLog},
       ?LOG("ROLLing back SEND from " ++ ?TO_STRING(cerl:concrete(Pid)) ++ " to " ++ ?TO_STRING(cerl:concrete(DestPid))),
       roll_send(LogSystem, Pid, DestPid, Time);
-    {spawn, _, _, _, SpawnPid} ->
-      NewLog = System#sys.roll ++ utils:gen_log_spawn(Pid, SpawnPid),
+    {spawn, _, _, SpawnNode, SpawnPid} ->
+      NewLog = System#sys.roll ++ utils:gen_log_spawn(Pid, SpawnNode, SpawnPid),
       LogSystem = System#sys{roll = NewLog},
       ?LOG("ROLLing back SPAWN of " ++ ?TO_STRING(cerl:concrete(SpawnPid))),
       roll_spawn(LogSystem, Pid, SpawnPid);
@@ -82,7 +84,6 @@ roll_spawn(System, Pid, OtherPid) ->
 roll_start(System, Pid, SpawnNode) ->
   StartOpts = lists:filter(fun (X) -> X#opt.rule == ?RULE_START end,
                            roll_opts(System, Pid)),
-  io:format("StartOpts = ~p~n", [StartOpts]),
   case StartOpts of
     [] ->
       NewSystem = eval_step(System, SpawnNode),

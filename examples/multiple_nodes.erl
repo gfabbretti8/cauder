@@ -2,24 +2,27 @@
 
 -export([start/0, main/1, ack/1]).
 
-ack(Pid)->
-  Pid ! ok.
+start() ->
+  main(10).
 
-node(MainPid, Node) ->
+ack(Pid)->
+  Pid ! node().
+
+client(MainPid, Node) ->
   {ok, SpawnedNode} = slave:start('mac',Node),
   spawn(SpawnedNode,?MODULE, ack, [MainPid]).
 
 
-main(0) -> ok;
+main(0) ->
+  io:format("The network is now composed by: ~p~n", [nodes()]);
 main(N) ->
   Pid = self(),
   Node = list_to_atom("node"++ integer_to_list(N)),
-  node(Pid, Node),
-  receive ok ->
-      io:format("Node ~p has been spawned~n",[N])
+  client(Pid, Node),
+  receive NodeName ->
+      io:format("~p~n",[NodeName])
   end,
   main(N-1).
 
 
-start() ->
-  main(40).
+

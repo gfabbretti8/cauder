@@ -21,7 +21,7 @@ eval_step(System, Pid) ->
   Trace = System#sys.trace,
   Nodes = System#sys.nodes,
   {Proc, RestProcs} = utils:select_proc(Procs, Pid),
-  #proc{pid = Pid, hist = [CurHist|RestHist]} = Proc,
+  #proc{pid = Pid, node = Node, hist = [CurHist|RestHist]} = Proc,
   case CurHist of
     {tau, OldEnv, OldExp} ->
       OldProc = Proc#proc{hist = RestHist, env = OldEnv, exp = OldExp},
@@ -29,25 +29,28 @@ eval_step(System, Pid) ->
     {self, OldEnv, OldExp} ->
       OldProc = Proc#proc{hist = RestHist, env = OldEnv, exp = OldExp},
       System#sys{msgs = Msgs, procs = [OldProc|RestProcs]};
+    {node, OldEnv, OldExp} ->
+      OldProc = Proc#proc{hist = RestHist, env = OldEnv, exp = OldExp},
+      System#sys{procs = [OldProc|RestProcs]};
     {nodes, OldEnv, OldExp} ->
       OldProc = Proc#proc{hist = RestHist, env = OldEnv, exp = OldExp},
       System#sys{msgs = Msgs, procs = [OldProc|RestProcs]};
     {send, OldEnv, OldExp, DestPid, {MsgValue, Time}} ->
       {_Msg, RestMsgs} = utils:select_msg(Msgs, Time),
       OldProc = Proc#proc{hist = RestHist, env = OldEnv, exp = OldExp},
-      TraceItem = #trace{type = ?RULE_SEND, from = Pid, to = DestPid, val = MsgValue, time = Time},
+      {DestProc, _} = utils:select_proc(Procs, DestPid),
+      DestNode = DestProc#proc.node,
+      TraceItem = #trace{type = ?RULE_SEND, from = Pid, fromNode = Node, to = DestPid, toNode = DestNode, val = MsgValue, time = Time},
       OldTrace = lists:delete(TraceItem, Trace),
       System#sys{msgs = RestMsgs, procs = [OldProc|RestProcs], trace = OldTrace};
     {start, OldEnv, OldExp, SpawnNode} ->
       OldProc = Proc#proc{hist = RestHist, env = OldEnv, exp = OldExp},
-      TraceItem = #trace{type = ?RULE_START, from = Pid, start = SpawnNode},
-      OldTrace = lists:delete(TraceItem, Trace),
       OldNodes = Nodes -- [SpawnNode],
-      System#sys{procs = [OldProc|RestProcs], nodes = OldNodes, trace = OldTrace};
-    {spawn , OldEnv, OldExp,_SpawnNode, SpawnPid} ->
+      System#sys{procs = [OldProc|RestProcs], nodes = OldNodes};
+    {spawn , OldEnv, OldExp, SpawnNode, SpawnPid} ->
       {_SpawnProc, OldRestProcs} = utils:select_proc(RestProcs, SpawnPid),
       OldProc = Proc#proc{hist = RestHist, env = OldEnv, exp = OldExp},
-      TraceItem = #trace{type = ?RULE_SPAWN, from = Pid, to = SpawnPid},
+      TraceItem = #trace{type = ?RULE_SPAWN, from = Pid, fromNode = Node, to = SpawnPid, toNode = SpawnNode},
       OldTrace = lists:delete(TraceItem, Trace),
       System#sys{msgs = Msgs, procs = [OldProc|OldRestProcs], trace = OldTrace};
     {rec, OldEnv, OldExp, OldMsg, OldMail} ->
@@ -119,6 +122,7 @@ eval_proc_opt(RestSystem, CurProc) ->
         case CurHist of
           {tau,_,_} ->  ?RULE_SEQ;
           {self,_,_} -> ?RULE_SELF;
+          {node,_,_} -> ?RULE_NODE;
           {nodes,_,_} -> ?RULE_NODES;
           {send,_,_, DestPid, {MsgValue, Time}} ->
             MsgList = [ M || M <- Msgs, M#msg.time == Time,

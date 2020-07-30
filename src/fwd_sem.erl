@@ -367,7 +367,7 @@ eval_step(System, Pid) ->
       {start, NewNode} ->
         NewHist = [{start, Env, Exp, NewNode}|Hist],
         NewProc = Proc#proc{hist = NewHist, exp = NewExp},
-        System#sys{nodes = [NewNode|Nodes], procs = [NewProc|RestProcs]};
+        System#sys{nodes = [NewNode] ++ Nodes, procs = [NewProc|RestProcs]};
       {self, Var} ->
         NewHist = [{self, Env, Exp}|Hist],
         RepExp = utils:replace(Var, Pid, NewExp),

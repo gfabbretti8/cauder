@@ -166,8 +166,8 @@ eval_seq_1(Env,Exp) ->
                       Var = utils:build_var(VarNum),
                       {Env, Var, {node, Var}};
                     {{c_literal,_,'slave'},{c_literal,_,'start'}} ->
-                      {c_literal, [], NodeHost} = lists:nth(1, CallArgs),
-                      {c_literal, [], NodeName} = lists:nth(2, CallArgs),
+                      {c_literal, [], NodeName} = lists:nth(1, CallArgs),
+                      {c_literal, [], NodeHost} = lists:nth(2, CallArgs),
                       NewNode = cerl:c_atom(list_to_atom(lists:concat([NodeName,'@', NodeHost]))),
                       Ok = cerl:c_atom(ok),
                       NewExp = cerl:c_tuple([Ok,NewNode]),

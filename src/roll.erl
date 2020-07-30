@@ -45,7 +45,7 @@ eval_step(System, Pid) ->
       NewLog = System#sys.roll ++ utils:gen_log_start(Pid, SpawnNode),
       LogSystem = System#sys{roll = NewLog},
       ?LOG("Rolling back START of " ++ ?TO_STRING(cerl:concrete(SpawnNode))),
-      roll_start(LogSystem, Pid, SpawnNode);
+      roll_start(LogSystem, Pid, SpawnNode, []);
     _ ->
       RollOpts = roll_opts(System, Pid),
       cauder:eval_step(System, hd(RollOpts))
@@ -81,18 +81,22 @@ roll_spawn(System, Pid, OtherPid) ->
       cauder:eval_step(System, hd(SpawnOpts))
   end.
 
-roll_start(System, Pid, SpawnNode) ->
+roll_start(System, Pid, SpawnNode, []) ->
   StartOpts = lists:filter(fun (X) -> X#opt.rule == ?RULE_START end,
                            roll_opts(System, Pid)),
   case StartOpts of
     [] ->
-      NewSystem = eval_step(System, SpawnNode),
-      roll_spawn(NewSystem, Pid, SpawnNode);
+      AllProcs = System#sys.procs,
+      ProcsOnNode = utils:select_procs_from_node(AllProcs, SpawnNode),
+      roll_start(System, Pid, SpawnNode, ProcsOnNode);
     _ ->
       cauder:eval_step(System, hd(StartOpts))
-  end.
+  end;
 
-
+roll_start(System, Pid, SpawnNode, [Proc|RestProcs]) ->
+  SpawnPid = Proc#proc.pid,
+  RolledSystem = eval_roll_spawn(System, SpawnPid),
+  roll_start(RolledSystem, Pid, SpawnNode, RestProcs).
 
 can_roll_send(System, Id) ->
   Procs = System#sys.procs,
@@ -153,7 +157,7 @@ eval_roll_start(System, SpawnNode) ->
   ProcsWithStart = utils:select_proc_with_start(Procs, SpawnNode),
   Proc = hd(ProcsWithStart),
   Pid = Proc#proc.pid,
-  eval_roll_until_start(System, Pid, SpawnNode).
+  eval_roll_until_start(System, Pid, SpawnNode, []).
 
 eval_roll_rec(System, Id) ->
   Procs = System#sys.procs,
@@ -193,7 +197,7 @@ eval_roll_until_spawn(System, Pid, SpawnPid) ->
       eval_roll_until_spawn(NewSystem, Pid, SpawnPid)
   end.
 
-eval_roll_until_start(System, Pid, SpawnNode) ->
+eval_roll_until_start(System, Pid, SpawnNode, []) ->
   Procs = System#sys.procs,
   {Proc, _} = utils:select_proc(Procs, Pid),
   [CurHist|_]= Proc#proc.hist,
@@ -202,7 +206,7 @@ eval_roll_until_start(System, Pid, SpawnNode) ->
       eval_step(System, Pid);
     _ ->
       NewSystem = eval_step(System, Pid),
-      eval_roll_until_start(NewSystem, Pid, SpawnNode)
+      eval_roll_until_start(NewSystem, Pid, SpawnNode, [])
   end.
 
 eval_roll_until_rec(System, Pid, Id) ->

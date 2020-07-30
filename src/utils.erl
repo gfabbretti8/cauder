@@ -9,7 +9,7 @@
          select_proc/2, select_msg/2,
          select_proc_with_time/2, select_proc_with_send/2,
          select_proc_with_spawn/2, select_proc_with_start/2 ,select_proc_with_rec/2,
-         select_proc_with_var/2, list_from_core/1,
+         select_proc_with_var/2, select_procs_from_node/2, list_from_core/1,
          update_env/2, merge_env/2,
          replace/3, replace_all/2, pp_system/2, pp_trace/1, pp_roll_log/1,
          moduleNames/1,
@@ -219,6 +219,18 @@ select_proc_with_var(Procs, Var) ->
                     has_var(Env, Var)
                   end, Procs),
   ProcWithRec.
+
+%%--------------------------------------------------------------------
+%% @doc Returns the processes running in Node
+%% @end
+%%--------------------------------------------------------------------
+select_procs_from_node(Procs, Node) ->
+  ProcsInNode =
+    lists:filter( fun (Proc) ->
+                      ProcNode = Proc#proc.node,
+                      ProcNode =:= Node
+                  end, Procs),
+  ProcsInNode.
 
 %%--------------------------------------------------------------------
 %% @doc Transforms a Core Erlang list to a regular list
@@ -638,7 +650,7 @@ has_send([{send,_,_,_,{_,Time}}|_], Time) -> true;
 has_send([_|RestHist], Time) -> has_send(RestHist, Time).
 
 has_spawn([], _) -> false;
-has_spawn([{spawn,_,_,Pid}|_], Pid) -> true;
+has_spawn([{spawn,_,_,_,Pid}|_], Pid) -> true;
 has_spawn([_|RestHist], Pid) -> has_spawn(RestHist, Pid).
 
 has_start([], _) -> false;

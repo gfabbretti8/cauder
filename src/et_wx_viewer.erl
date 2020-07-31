@@ -1240,7 +1240,7 @@ getAsyncPatternsKeys(AsyncPattern)->
     case AsyncPattern of
         undefined->
             undefined;
-        Map->
+        _Map->
             L=maps:to_list(AsyncPattern),
             {Spawn,spawn}=lists:keyfind(spawn,2,L),
             {Send,send}=lists:keyfind(send,2,L),

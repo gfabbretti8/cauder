@@ -32,7 +32,8 @@ start_refs(FunDefs) ->
   ref_add(?FUN_DEFS,   FunDefs),
   ref_add(?FRESH_PID,  2),
   ref_add(?FRESH_TIME, 1),
-  ref_add(?FRESH_VAR,  1).
+  ref_add(?FRESH_VAR,  1),
+  ref_add(?FRESH_COUNTER,  1).
 
 %%--------------------------------------------------------------------
 %% @doc Stops the ETS servers
@@ -46,7 +47,7 @@ stop_refs() ->
 %% @doc Returns all the evaluation options for a given System
 %% @end
 %%--------------------------------------------------------------------
-eval_opts(System) ->  
+eval_opts(System) ->
   FwdOpts = fwd_sem:eval_opts(System),
   BwdOpts = bwd_sem:eval_opts(System),
   FwdOpts ++ BwdOpts.
@@ -71,7 +72,7 @@ eval_mult(System, Option, Steps) ->
 eval_mult_1(System, _Option, Steps, Steps) ->
   {System, Steps};
 eval_mult_1(System, Option, Steps, StepsDone) ->
-  Sem = 
+  Sem =
     case Option of
       ?MULT_FWD -> fwd_sem;
       ?MULT_BWD -> bwd_sem

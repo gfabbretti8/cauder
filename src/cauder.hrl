@@ -40,6 +40,7 @@
 -define(FRESH_PID,  301).
 -define(FRESH_TIME, 302).
 -define(FRESH_VAR,  303).
+-define(FRESH_COUNTER, 304).
 
 -define(MULT_FWD, mult_fwd).
 -define(MULT_BWD, mult_bwd).
@@ -98,6 +99,7 @@
                 toNode,
                 val,
                 time,
+                result,
                 start}).
 
 -record(replay, {call,

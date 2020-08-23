@@ -425,7 +425,7 @@ pp_hist_2({node,_,_}) ->
   "node";
 pp_hist_2({nodes,_,_,OldNodes}) ->
   "nodes([" ++ lists:map(fun(Node) -> pp(Node) end, OldNodes) ++ "])";
-pp_hist_2({spawn,_,_,_,Pid}) ->
+pp_hist_2({spawn,_,_,_,_,Pid}) ->
   "spawn(" ++ [{?CAUDER_GREEN, pp(Pid)}] ++ ")";
 pp_hist_2({start,_,_,{ok,SpawnedNode}}) ->
   "start(" ++ pp(SpawnedNode) ++ ")";

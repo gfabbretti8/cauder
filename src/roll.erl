@@ -36,7 +36,7 @@ eval_step(System, Pid) ->
       LogSystem = System#sys{roll = NewLog},
       ?LOG("ROLLing back SEND from " ++ ?TO_STRING(cerl:concrete(Pid)) ++ " to " ++ ?TO_STRING(cerl:concrete(DestPid))),
       roll_send(LogSystem, Pid, DestPid, Time);
-    {spawn, _, _, SpawnNode, SpawnPid} ->
+    {spawn, _, _, ok, SpawnNode, SpawnPid} ->
       NewLog = System#sys.roll ++ utils:gen_log_spawn(Pid, SpawnNode, SpawnPid),
       LogSystem = System#sys{roll = NewLog},
       ?LOG("ROLLing back SPAWN of " ++ ?TO_STRING(cerl:concrete(SpawnPid))),
@@ -215,7 +215,7 @@ eval_roll_until_spawn(System, Pid, SpawnPid) ->
   {Proc, _} = utils:select_proc(Procs, Pid),
   [CurHist|_]= Proc#proc.hist,
   case CurHist of
-    {spawn,_,_,_,SpawnPid} ->
+    {spawn,_,_,ok,_,SpawnPid} ->
       eval_step(System, Pid);
     _ ->
       NewSystem = eval_step(System, Pid),

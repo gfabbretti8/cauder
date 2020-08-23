@@ -7,7 +7,7 @@
 -export([fundef_lookup/2, fundef_rename/1, substitute/2,
          build_var/1, build_var/2, pid_exists/2,
          select_proc/2, select_msg/2,
-         select_proc_with_time/2, select_proc_with_send/2,
+         select_proc_with_time/2, select_proc_with_send/2, select_proc_with_read/2,
          select_proc_with_spawn/2, select_proc_with_start/2 ,select_proc_with_rec/2,
          select_proc_with_var/2, select_procs_from_node/2, list_from_core/1,
          update_env/2, merge_env/2,
@@ -15,10 +15,10 @@
          moduleNames/1,
          stringToFunName/1,stringToCoreArgs/1, toCore/1, toErlang/1,
          filter_options/2, filter_procs_opts/1,
-         has_fwd/1, has_bwd/1, has_norm/1, has_var/2,
+         has_fwd/1, has_bwd/1, has_norm/1, has_var/2, has_read/3,
          is_queue_minus_msg/3, topmost_rec/1, last_msg_rest/1,
          gen_log_send/5, gen_log_spawn/3, gen_log_start/2,
-         empty_log/1, must_focus_log/1,
+         gen_log_nodes/2, empty_log/1, must_focus_log/1,
          extract_replay_data/1, extract_pid_log_data/2, get_mod_name/1]).
 
 -include("cauder.hrl").
@@ -193,6 +193,19 @@ select_proc_with_start(Procs, Node) ->
                       has_start(Hist, Node)
                   end, Procs),
   ProcWithStart.
+
+%%--------------------------------------------------------------------
+%% @doc Returns the processes that have performed a nodes after the
+%% start of Node
+%% @end
+%%--------------------------------------------------------------------
+select_proc_with_read(Procs, Node) ->
+  ProcsWithRead =
+    lists:filter(fun (Proc) ->
+                     Hist = Proc#proc.hist,
+                     has_read(Hist, Node, false)
+                 end, Procs),
+  ProcsWithRead.
 
 %%--------------------------------------------------------------------
 %% @doc Returns the processes that contain a rec item in history
@@ -410,12 +423,14 @@ pp_hist_2({self,_,_}) ->
   "self";
 pp_hist_2({node,_,_}) ->
   "node";
-pp_hist_2({nodes,_,_}) ->
-  "nodes";
+pp_hist_2({nodes,_,_,OldNodes}) ->
+  "nodes([" ++ lists:map(fun(Node) -> pp(Node) end, OldNodes) ++ "])";
 pp_hist_2({spawn,_,_,_,Pid}) ->
   "spawn(" ++ [{?CAUDER_GREEN, pp(Pid)}] ++ ")";
-pp_hist_2({start,_,_,SpawnedNode}) ->
+pp_hist_2({start,_,_,{ok,SpawnedNode}}) ->
   "start(" ++ pp(SpawnedNode) ++ ")";
+pp_hist_2({start,_,_,{error,_}}) ->
+  "start(error)";
 pp_hist_2({send,_,_,_,{Value,Time}}) ->
   "send(" ++ pp(Value) ++ "," ++ [{?wxRED, integer_to_list(Time)}] ++ ")";
 pp_hist_2({rec,_,_,{Value,Time},_}) ->
@@ -468,15 +483,18 @@ pp_trace_item(#trace{type = Type,
                      to   = To,
                      toNode = ToNode,
                      val  = Val,
+                     result = Result,
                      time = Time,
                      start= Start}) ->
   case Type of
     ?RULE_START   -> pp_trace_start(From, Start);
     ?RULE_SEND    -> pp_trace_send(From, To, ToNode, FromNode, Val, Time);
-    ?RULE_SPAWN   -> pp_trace_spawn(From, FromNode, To, ToNode);
+    ?RULE_SPAWN   -> pp_trace_spawn(From, FromNode, To, ToNode, Result);
     ?RULE_RECEIVE -> pp_trace_receive(From, Val, Time)
   end.
 
+pp_trace_start(From, error) ->
+  ["Warning: ",pp_pid(From)," tried to start a node, but the node already belongs to the network."];
 pp_trace_start(From, Start) ->
     [pp_pid(From)," starts ",pp(Start)].
 
@@ -485,9 +503,11 @@ pp_trace_send(From, To, FromNode, ToNode, Val, Time) when FromNode == ToNode ->
 pp_trace_send(From, To, _, ToNode, Val, Time) ->
   [pp_pid(From)," sends ",pp(Val)," to ",pp_pid(To)," on ",pp(ToNode)," (",integer_to_list(Time),")"].
 
-pp_trace_spawn(From, Node, To, Node) ->%when the node is the same we omit the info
+pp_trace_spawn(From, _, _, _, error) ->
+  ["Warning: ",pp_pid(From), " tried to spawn a process on a node that is not connected to the network."];
+pp_trace_spawn(From, Node, To, Node, ok) ->%when the node is the same we omit the info
   [pp_pid(From)," spawns ",pp_pid(To)];
-pp_trace_spawn(From, _, To, Node) ->
+pp_trace_spawn(From, _, To, Node, ok) ->
   [pp_pid(From), " spawns ",pp_pid(To)," on ",pp(Node)].
 
 
@@ -650,12 +670,20 @@ has_send([{send,_,_,_,{_,Time}}|_], Time) -> true;
 has_send([_|RestHist], Time) -> has_send(RestHist, Time).
 
 has_spawn([], _) -> false;
-has_spawn([{spawn,_,_,_,Pid}|_], Pid) -> true;
+has_spawn([{spawn,_,_,ok,_,Pid}|_], Pid) -> true;
 has_spawn([_|RestHist], Pid) -> has_spawn(RestHist, Pid).
 
 has_start([], _) -> false;
-has_start([{start,_,_,Node}|_], Node) -> true;
+has_start([{start,_,_,{ok, Node}}|_], Node) -> true;
 has_start([_|RestHist], Node) -> has_start(RestHist, Node).
+
+has_read([],_,Result) -> Result;
+has_read([{nodes,_,_,Nodes}|RestHist], Node,Result) ->
+  NewResult = Result or lists:member(Node, Nodes),
+  has_read(RestHist,Node,NewResult);
+has_read([_|RestHist],Node,Result) ->
+  has_read(RestHist,Node,Result).
+
 
 has_rec([], _) -> false;
 has_rec([{rec,_,_, {_, Time},_}|_], Time) -> true;
@@ -694,6 +722,9 @@ gen_log_spawn(_Pid, Node,OtherPid) ->
 
 gen_log_start(_Pid, SpawnNode) ->
   [["Roll start of ",pp(SpawnNode)]].
+
+gen_log_nodes(Pid, _OldNodes) ->
+  [["Roll nodes of ", pp_pid(Pid)]].
 
 empty_log(System) ->
   System#sys{roll = []}.

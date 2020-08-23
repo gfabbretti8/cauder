@@ -4,22 +4,16 @@
 
 start() ->
   Child = spawn(?MODULE, child, [self()]),
-  Child ! vai1,
-  receive vai2 -> ok end,
   slave:start('coolHost', 'coolName'),
   slave:start('coolHost', 'coolName'),
   U = nodes(),
-  Child ! vai3,
   U.
 
-child(Parent) ->
-  receive vai1 -> ok end,
+child(_Parent) ->
   U = nodes(),
   spawn('doesnt@exist', ?MODULE, helloWorld, []),
-  Parent ! vai2,
-  receive vai3 -> ok end,
   slave:start('anotherCoolHost', 'coolName'),
-   U.
+  U.
 
 
 

@@ -9,7 +9,7 @@ showEvent(CollectorPid,#trace{type=Type,from=From,to=To,val=Val,time=_Time})->
 	et_collector:report_event(CollectorPid,85,From,To,Type,Val).
 
 %%cit converts the FIELDS of the trace into human-readable form and in the receive case, it associates its sender
-parseTrace(ListTrace,#trace{type=Type,from=From,to=To,val=Val,start=SpawnedNode,time=Time})->
+parseTrace(ListTrace,#trace{type=Type,from=From,to=To,val=Val,time=Time})->
 	case Type of
 		?RULE_RECEIVE->
 			[ReceiveTo]=[Send#trace.from||Send<-ListTrace,Send#trace.type==?RULE_SEND,Send#trace.val==Val,Send#trace.time==Time],
@@ -17,9 +17,7 @@ parseTrace(ListTrace,#trace{type=Type,from=From,to=To,val=Val,start=SpawnedNode,
 		?RULE_SEND->
 			#trace{type=Type,from=pp(From),to=pp(To),val=pp(Val),time=Time};
 		?RULE_SPAWN->
-			#trace{type=Type,from=pp(From),to=pp(To),val=Val,time=Time};
-    ?RULE_START ->
-      #trace{type=Type,from=pp(From),start=pp(SpawnedNode)}
+			#trace{type=Type,from=pp(From),to=pp(To),val=Val,time=Time}
 	end.
 
 init()->%%initialize the tracer
@@ -35,7 +33,7 @@ showingTrace(CollectorPid,LastTrace)->%%start receive message for handle the vie
 				true->% if they are the same except the last one and I don't change the graphics
 					showingTrace(CollectorPid,ListTrace);
 				false-> %otherwise I save it, as the events appear, I empty the collector's events and re-fill it
-					ParsedTrace=[parseTrace(ListTrace,Trace)||Trace<-ListTrace],
+					ParsedTrace=[parseTrace(ListTrace,Trace)||Trace<-ListTrace, Trace#trace.type =/= ?RULE_START],
 					et_collector:multicast(CollectorPid,clear_all),%%%%RESET THE VIEWER GRAPHIC CHART
 					[showEvent(CollectorPid,Item)||Item<-ParsedTrace],%%FILL VIEWER EVENTS
 					showingTrace(CollectorPid,ListTrace)

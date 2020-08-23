@@ -41,11 +41,16 @@ eval_step(System, Pid) ->
       LogSystem = System#sys{roll = NewLog},
       ?LOG("ROLLing back SPAWN of " ++ ?TO_STRING(cerl:concrete(SpawnPid))),
       roll_spawn(LogSystem, Pid, SpawnPid);
-    {start, _, _, SpawnNode} ->
+    {start, _, _, {ok, SpawnNode}} ->
       NewLog = System#sys.roll ++ utils:gen_log_start(Pid, SpawnNode),
       LogSystem = System#sys{roll = NewLog},
       ?LOG("Rolling back START of " ++ ?TO_STRING(cerl:concrete(SpawnNode))),
-      roll_start(LogSystem, Pid, SpawnNode, []);
+      roll_start(LogSystem, Pid, SpawnNode);
+    {nodes, _, _, OldNodes} ->
+      NewLog = System#sys.roll ++ utils:gen_log_nodes(Pid, OldNodes),
+      LogSystem = System#sys{roll = NewLog},
+      ?LOG("Rolling back NODES of " ++ ?TO_STRING(cerl:concrete(Pid))),
+      roll_nodes(LogSystem, Pid, OldNodes);
     _ ->
       RollOpts = roll_opts(System, Pid),
       cauder:eval_step(System, hd(RollOpts))
@@ -81,22 +86,42 @@ roll_spawn(System, Pid, OtherPid) ->
       cauder:eval_step(System, hd(SpawnOpts))
   end.
 
-roll_start(System, Pid, SpawnNode, []) ->
+roll_start(System, Pid, SpawnNode) ->
   StartOpts = lists:filter(fun (X) -> X#opt.rule == ?RULE_START end,
                            roll_opts(System, Pid)),
   case StartOpts of
     [] ->
       AllProcs = System#sys.procs,
-      ProcsOnNode = utils:select_procs_from_node(AllProcs, SpawnNode),
-      roll_start(System, Pid, SpawnNode, ProcsOnNode);
+      case utils:select_procs_from_node(AllProcs, SpawnNode) of
+        [] ->% start cannot roll either because procs are running or because of nodes,
+             % if we enter here it means that someone did a nodes after the start
+          OtherProc = hd(utils:select_proc_with_read(AllProcs, SpawnNode)),
+          #proc{pid = OtherPid} = OtherProc,
+          NewSystem = eval_step(System, OtherPid),
+          roll_start(NewSystem, Pid, SpawnNode);
+        [OtherProc|_] ->
+          #proc{pid = OtherPid} = OtherProc,
+          NewSystem = eval_step(System, OtherPid),
+          roll_start(NewSystem, Pid, SpawnNode)
+        end;
     _ ->
       cauder:eval_step(System, hd(StartOpts))
-  end;
+  end.
 
-roll_start(System, Pid, SpawnNode, [Proc|RestProcs]) ->
-  SpawnPid = Proc#proc.pid,
-  RolledSystem = eval_roll_spawn(System, SpawnPid),
-  roll_start(RolledSystem, Pid, SpawnNode, RestProcs).
+roll_nodes(System, Pid, OldNodes) ->
+  NodesOpts = lists:filter(fun (X) -> X#opt.rule == ?RULE_NODES end,
+                           roll_opts(System, Pid)),
+  case NodesOpts of
+    [] ->
+      #sys{nodes = Nodes, procs = Procs} = System,
+      Node = hd(Nodes -- OldNodes),
+      OtherProc = hd(utils:select_proc_with_start(Procs, Node)),
+      #proc{pid = OtherPid} = OtherProc,
+      NewSystem = eval_step(System, OtherPid),
+      roll_nodes(NewSystem, Pid, OldNodes);
+    _ ->
+      cauder:eval_step(System, hd(NodesOpts))
+  end.
 
 can_roll_send(System, Id) ->
   Procs = System#sys.procs,
@@ -118,7 +143,7 @@ can_roll_start(System, SpawnNode) ->
   Procs = System#sys.procs,
   ProcsWithStart = utils:select_proc_with_start(Procs, SpawnNode),
   case length(ProcsWithStart) of
-    0 -> false;
+    0 -> io:format("Male ~n~n~n"),false;
     _ -> true
   end.
 
@@ -202,7 +227,7 @@ eval_roll_until_start(System, Pid, SpawnNode, []) ->
   {Proc, _} = utils:select_proc(Procs, Pid),
   [CurHist|_]= Proc#proc.hist,
   case CurHist of
-    {start,_,_,SpawnNode} ->
+    {start,_,_,{ok, SpawnNode}} ->
       eval_step(System, Pid);
     _ ->
       NewSystem = eval_step(System, Pid),

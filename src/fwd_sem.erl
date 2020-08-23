@@ -166,12 +166,13 @@ eval_seq_1(Env,Exp) ->
                       Var = utils:build_var(VarNum),
                       {Env, Var, {node, Var}};
                     {{c_literal,_,'slave'},{c_literal,_,'start'}} ->
-                      {c_literal, [], NodeName} = lists:nth(1, CallArgs),
-                      {c_literal, [], NodeHost} = lists:nth(2, CallArgs),
+                      {c_literal, [], NodeHost} = lists:nth(1, CallArgs),
+                      {c_literal, [], NodeName} = lists:nth(2, CallArgs),
                       NewNode = cerl:c_atom(list_to_atom(lists:concat([NodeName,'@', NodeHost]))),
-                      Ok = cerl:c_atom(ok),
-                      NewExp = cerl:c_tuple([Ok,NewNode]),
-                      {Env, NewExp, {start,  NewNode}};
+                      VarNum = ref_lookup(?FRESH_VAR),
+                      ref_add(?FRESH_VAR, VarNum + 1),
+                      Var = utils:build_var(VarNum),
+                      {Env, Var, {start, Var, NewNode}};
                     {{c_literal,_,'erlang'},{c_literal,_,'spawn'}} ->
                       case length(CallArgs) of
                         3 -> %the new actor is spawned locally
@@ -364,10 +365,30 @@ eval_step(System, Pid) ->
       tau ->
         NewProc = Proc#proc{hist = [{tau,Env,Exp}|Hist], env = NewEnv, exp = NewExp},
         System#sys{msgs = Msgs, procs = [NewProc|RestProcs]};
-      {start, NewNode} ->
-        NewHist = [{start, Env, Exp, NewNode}|Hist],
-        NewProc = Proc#proc{hist = NewHist, exp = NewExp},
-        System#sys{nodes = [NewNode] ++ Nodes, procs = [NewProc|RestProcs]};
+      {start, Var, NewNode} ->
+        case lists:member(NewNode, Nodes) of
+          true ->
+            Time = ref_lookup(?FRESH_COUNTER),
+            ref_add(?FRESH_COUNTER, Time + 1),
+            NewNodes = Nodes,
+            ErrAtom = cerl:c_atom(error),
+            ErrorMessage = lists:concat(['Error: ', cerl:concrete(NewNode), ' is already part of the network.\n']),
+            CErrorMessage = cerl:c_atom(list_to_atom(ErrorMessage)),
+            RepExp = utils:replace(Var, cerl:c_tuple([ErrAtom,CErrorMessage]), NewExp),
+            NewHist = [{start, Env, Exp, {error, Time}}|Hist],
+            NewProc = Proc#proc{hist = NewHist, exp = RepExp},
+            TraceItem = #trace{type = ?RULE_START, from = Pid, start = error, time = Time};
+          false ->
+            NewNodes = Nodes ++ [NewNode],
+            NewHist = [{start, Env, Exp, {ok,NewNode}}|Hist],
+            OkAtom = cerl:c_atom(ok),
+            RepExp = utils:replace(Var, cerl:c_tuple([OkAtom,NewNode]), NewExp),
+            NewProc = Proc#proc{hist = NewHist, exp = RepExp},
+            TraceItem = #trace{type = ?RULE_START, from = Pid, start = NewNode}
+        end,
+
+        NewTrace = [TraceItem|Trace],
+        System#sys{nodes = NewNodes, procs = [NewProc|RestProcs], trace = NewTrace};
       {self, Var} ->
         NewHist = [{self, Env, Exp}|Hist],
         RepExp = utils:replace(Var, Pid, NewExp),
@@ -379,7 +400,7 @@ eval_step(System, Pid) ->
         NewProc = Proc#proc{hist = NewHist, env = NewEnv, exp = RepExp},
         System#sys{msgs = Msgs, procs = [NewProc|RestProcs]};
       {nodes, Var} ->
-        NewHist = [{nodes, Env, Exp}|Hist],
+        NewHist = [{nodes, Env, Exp, Nodes}|Hist],
         NodesList = cerl:make_list(Nodes -- [Node]),
         RepExp = utils:replace(Var, NodesList, NewExp),
         NewProc = Proc#proc{hist = NewHist, env = NewEnv, exp = RepExp},
@@ -406,24 +427,36 @@ eval_step(System, Pid) ->
                           local -> Node;
                           NonLocal -> NonLocal
                         end,
-        SpawnProc = #proc{node = SpawnProcNode,
-                          pid = SpawnPid,
-                          env = [],
-                          exp = cerl:c_apply(FunCall,FunArgs),
-                          spf = cerl:var_name(FunCall)},
-        NewHist = [{spawn, Env, Exp, SpawnProcNode, SpawnPid}|Hist],
-        RepExp = utils:replace(Var, SpawnPid, NewExp),
-        NewProc = Proc#proc{hist = NewHist, env = NewEnv, exp = RepExp},
-        TraceItem = #trace{type = ?RULE_SPAWN, from = Pid, fromNode = Node, to = SpawnPid, toNode = SpawnProcNode},
-        NewTrace = [TraceItem|Trace],
-        System#sys{msgs = Msgs, procs = [NewProc|[SpawnProc|RestProcs]], trace = NewTrace};
+        case lists:member(SpawnProcNode, Nodes) of
+          true ->
+            SpawnProc = #proc{node = SpawnProcNode,
+                              pid = SpawnPid,
+                              env = [],
+                              exp = cerl:c_apply(FunCall,FunArgs),
+                              spf = cerl:var_name(FunCall)},
+            NewHist = [{spawn, Env, Exp, ok, SpawnProcNode, SpawnPid}|Hist],
+            RepExp = utils:replace(Var, SpawnPid, NewExp),
+            TraceItem = #trace{type = ?RULE_SPAWN, from = Pid, fromNode = Node, to = SpawnPid, toNode = SpawnProcNode, result = ok},
+            NewProc = Proc#proc{hist = NewHist, env = NewEnv, exp = RepExp},
+            NewTrace = [TraceItem|Trace],
+            System#sys{msgs = Msgs, procs = [NewProc] ++ [SpawnProc] ++ RestProcs, trace = NewTrace};
+          false ->
+            Time = ref_lookup(?FRESH_COUNTER),
+            ref_add(?FRESH_COUNTER, Time + 1),
+            NewHist = [{spawn, Env, Exp, error, Time, SpawnPid}|Hist],
+            RepExp = utils:replace(Var, SpawnPid, NewExp),
+            TraceItem = #trace{type = ?RULE_SPAWN, from = Pid, fromNode = Node, time = Time, result = error},
+            NewProc = Proc#proc{hist = NewHist, env = NewEnv, exp = RepExp},
+            NewTrace = [TraceItem|Trace],
+            System#sys{msgs = Msgs, procs = [NewProc] ++ RestProcs, trace = NewTrace}
+        end;
       {rec, Var, ReceiveClauses} ->
         {Bindings, RecExp, ConsMsg, NewMail} = matchrec(ReceiveClauses, Mail, NewEnv),
         UpdatedEnv = utils:merge_env(NewEnv, Bindings),
         RepExp = utils:replace(Var, RecExp, NewExp),
         NewHist = [{rec, Env, Exp, ConsMsg, Mail}|Hist],
         NewProc = Proc#proc{hist = NewHist, env = UpdatedEnv, exp = RepExp, mail = NewMail},
-        {MsgValue, Time} = ConsMsg, 
+        {MsgValue, Time} = ConsMsg,
         TraceItem = #trace{type = ?RULE_RECEIVE, from = Pid, val = MsgValue, time = Time},
         NewTrace = [TraceItem|Trace],
         System#sys{msgs = Msgs, procs = [NewProc|RestProcs], trace = NewTrace}

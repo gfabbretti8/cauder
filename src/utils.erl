@@ -205,6 +205,7 @@ select_proc_with_read(Procs, Node) ->
                      Hist = Proc#proc.hist,
                      has_read(Hist, Node, false)
                  end, Procs),
+  io:format("Proc with read: ~p~n", [ProcsWithRead]),
   ProcsWithRead.
 
 %%--------------------------------------------------------------------
@@ -397,9 +398,10 @@ pp_env_1(Env, Exp, Opts) ->
 pp_pair(Var,Val) ->
   pp(Var) ++ " -> " ++ pp(Val).
 
-is_conc_item({spawn,_,_,_}) -> true;
+is_conc_item({spawn,_,_,_,_,_}) -> true;
 is_conc_item({send,_,_,_,_}) -> true;
 is_conc_item({rec,_,_,_,_}) -> true;
+is_conc_item({start,_,_,_}) -> true;
 is_conc_item(_) -> false.
 
 pp_hist(Hist, Opts) ->
@@ -487,11 +489,15 @@ pp_trace_item(#trace{type = Type,
                      time = Time,
                      start= Start}) ->
   case Type of
+    ?RULE_NODES   -> pp_trace_nodes(From);
     ?RULE_START   -> pp_trace_start(From, Start);
     ?RULE_SEND    -> pp_trace_send(From, To, ToNode, FromNode, Val, Time);
     ?RULE_SPAWN   -> pp_trace_spawn(From, FromNode, To, ToNode, Result);
     ?RULE_RECEIVE -> pp_trace_receive(From, Val, Time)
   end.
+
+pp_trace_nodes(From) ->
+  [pp_pid(From), " has performed a nodes"].
 
 pp_trace_start(From, error) ->
   ["Warning: ",pp_pid(From)," tried to start a node, but the node already belongs to the network."];
@@ -671,6 +677,7 @@ has_send([_|RestHist], Time) -> has_send(RestHist, Time).
 
 has_spawn([], _) -> false;
 has_spawn([{spawn,_,_,ok,_,Pid}|_], Pid) -> true;
+has_spawn([{spawn,_,_,error,_,Pid}|_], Pid) -> true;
 has_spawn([_|RestHist], Pid) -> has_spawn(RestHist, Pid).
 
 has_start([], _) -> false;

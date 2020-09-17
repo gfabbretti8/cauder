@@ -404,7 +404,9 @@ eval_step(System, Pid) ->
         NodesList = cerl:make_list(Nodes -- [Node]),
         RepExp = utils:replace(Var, NodesList, NewExp),
         NewProc = Proc#proc{hist = NewHist, env = NewEnv, exp = RepExp},
-        System#sys{msgs = Msgs, procs = [NewProc|RestProcs]};
+        TraceItem = #trace{type = ?RULE_NODES, from = Pid},
+        NewTrace = [TraceItem|Trace],
+        System#sys{msgs = Msgs, procs = [NewProc|RestProcs], trace = NewTrace};
       {send, DestPid, MsgValue} ->
         Time = ref_lookup(?FRESH_TIME),
         ref_add(?FRESH_TIME, Time + 1),

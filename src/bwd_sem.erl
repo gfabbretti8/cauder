@@ -34,7 +34,9 @@ eval_step(System, Pid) ->
       System#sys{procs = [OldProc|RestProcs]};
     {nodes, OldEnv, OldExp, _OldNodes} ->
       OldProc = Proc#proc{hist = RestHist, env = OldEnv, exp = OldExp},
-      System#sys{msgs = Msgs, procs = [OldProc|RestProcs]};
+      TraceItem = #trace{ type = ?RULE_NODES, from = Pid},
+      OldTrace = lists:delete(TraceItem,Trace),
+      System#sys{msgs = Msgs, procs = [OldProc|RestProcs], trace = OldTrace};
     {send, OldEnv, OldExp, DestPid, {MsgValue, Time}} ->
       {_Msg, RestMsgs} = utils:select_msg(Msgs, Time),
       OldProc = Proc#proc{hist = RestHist, env = OldEnv, exp = OldExp},
@@ -153,7 +155,7 @@ eval_proc_opt(RestSystem, Nodes, CurProc) ->
               [] -> ?NULL_RULE;
               _ -> ?RULE_SEND
             end;
-          {start,_,_,StartedNode} ->
+          {start,_,_,{ok,StartedNode}} ->
             case utils:select_procs_from_node(RestProcs, StartedNode) of
               [] ->
                 case utils:select_proc_with_read(RestProcs, StartedNode) of
@@ -162,6 +164,7 @@ eval_proc_opt(RestSystem, Nodes, CurProc) ->
                   end;
               _ -> ?NULL_RULE
             end;
+          {start,_,_,{error,_}} -> ?RULE_START;
           {spawn,_,_,ok,_,SpawnPid} ->
             {SpawnProc, _RestProcs} = utils:select_proc(RestProcs, SpawnPid),
             #proc{hist = SpawnHist, mail = SpawnMail} = SpawnProc,

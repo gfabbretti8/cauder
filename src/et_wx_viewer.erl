@@ -1641,9 +1641,9 @@ display_event(#e{event = Event} = E, S, DC)
 			 events = queue_in(E, S3#state.events)};
 	    FromName =:= ToName ->
 		case S#state.hide_actions of
-		    true -> 
+		    true ->
 			S3;
-		    false -> 
+		    false ->
 			Label = name_to_string(Event#event.label),
 			draw_named_arrow(Label, FromName, ToName, FromPos, ToPos, E, S3, DC)
 		end;

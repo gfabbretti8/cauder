@@ -33,7 +33,7 @@ showingTrace(CollectorPid,LastTrace)->%%start receive message for handle the vie
 				true->% if they are the same except the last one and I don't change the graphics
 					showingTrace(CollectorPid,ListTrace);
 				false-> %otherwise I save it, as the events appear, I empty the collector's events and re-fill it
-					ParsedTrace=[parseTrace(ListTrace,Trace)||Trace<-ListTrace, Trace#trace.type =/= ?RULE_START],
+					ParsedTrace=[parseTrace(ListTrace,Trace)||Trace<-ListTrace, Trace#trace.type =/= ?RULE_START, Trace#trace.type =/= ?RULE_NODES],
 					et_collector:multicast(CollectorPid,clear_all),%%%%RESET THE VIEWER GRAPHIC CHART
 					[showEvent(CollectorPid,Item)||Item<-ParsedTrace],%%FILL VIEWER EVENTS
 					showingTrace(CollectorPid,ListTrace)

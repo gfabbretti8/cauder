@@ -366,7 +366,7 @@ eval_step(System, Pid) ->
         NewProc = Proc#proc{hist = [{tau,Env,Exp}|Hist], env = NewEnv, exp = NewExp},
         System#sys{msgs = Msgs, procs = [NewProc|RestProcs]};
       {start, Var, NewNode} ->
-        case lists:member(NewNode, Nodes) of
+        case utils:node_exists(NewNode, Nodes) of
           true ->
             Time = ref_lookup(?FRESH_COUNTER),
             ref_add(?FRESH_COUNTER, Time + 1),
@@ -429,25 +429,23 @@ eval_step(System, Pid) ->
                           local -> Node;
                           NonLocal -> NonLocal
                         end,
-        case lists:member(SpawnProcNode, Nodes) of
+        case utils:node_exists(SpawnProcNode, Nodes) of
           true ->
             SpawnProc = #proc{node = SpawnProcNode,
                               pid = SpawnPid,
                               env = [],
                               exp = cerl:c_apply(FunCall,FunArgs),
                               spf = cerl:var_name(FunCall)},
-            NewHist = [{spawn, Env, Exp, ok, SpawnProcNode, SpawnPid}|Hist],
+            NewHist = [{spawn, Env, Exp, SpawnProcNode, SpawnPid}|Hist],
             RepExp = utils:replace(Var, SpawnPid, NewExp),
             TraceItem = #trace{type = ?RULE_SPAWN, from = Pid, fromNode = Node, to = SpawnPid, toNode = SpawnProcNode, result = ok},
             NewProc = Proc#proc{hist = NewHist, env = NewEnv, exp = RepExp},
             NewTrace = [TraceItem|Trace],
             System#sys{msgs = Msgs, procs = [NewProc] ++ [SpawnProc] ++ RestProcs, trace = NewTrace};
           false ->
-            Time = ref_lookup(?FRESH_COUNTER),
-            ref_add(?FRESH_COUNTER, Time + 1),
-            NewHist = [{spawn, Env, Exp, error, Time, SpawnPid}|Hist],
+            NewHist = [{spawn, Env, Exp, SpawnProcNode, SpawnPid}|Hist],
             RepExp = utils:replace(Var, SpawnPid, NewExp),
-            TraceItem = #trace{type = ?RULE_SPAWN, from = Pid, fromNode = Node, time = Time, result = error},
+            TraceItem = #trace{type = ?RULE_SPAWN, from = Pid, fromNode = Node, to = SpawnPid, toNode = SpawnProcNode, result = error},
             NewProc = Proc#proc{hist = NewHist, env = NewEnv, exp = RepExp},
             NewTrace = [TraceItem|Trace],
             System#sys{msgs = Msgs, procs = [NewProc] ++ RestProcs, trace = NewTrace}

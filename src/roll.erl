@@ -36,11 +36,11 @@ eval_step(System, Pid) ->
       LogSystem = System#sys{roll = NewLog},
       ?LOG("ROLLing back SEND from " ++ ?TO_STRING(cerl:concrete(Pid)) ++ " to " ++ ?TO_STRING(cerl:concrete(DestPid))),
       roll_send(LogSystem, Pid, DestPid, Time);
-    {spawn, _, _, ok, SpawnNode, SpawnPid} ->
+    {spawn, _, _, SpawnNode, SpawnPid} ->
       NewLog = System#sys.roll ++ utils:gen_log_spawn(Pid, SpawnNode, SpawnPid),
       LogSystem = System#sys{roll = NewLog},
       ?LOG("ROLLing back SPAWN of " ++ ?TO_STRING(cerl:concrete(SpawnPid))),
-      roll_spawn(LogSystem, Pid, SpawnPid);
+      roll_spawn(LogSystem, Pid, SpawnPid, SpawnNode);
     {start, _, _, {ok, SpawnNode}} ->
       NewLog = System#sys.roll ++ utils:gen_log_start(Pid, SpawnNode),
       LogSystem = System#sys{roll = NewLog},
@@ -75,13 +75,22 @@ roll_send(System, Pid, OtherPid, Time) ->
       cauder:eval_step(System, hd(SendOpts))
   end.
 
-roll_spawn(System, Pid, OtherPid) ->
+roll_spawn(System, Pid, OtherPid, SpawnNode) ->
   SpawnOpts = lists:filter(fun (X) -> X#opt.rule == ?RULE_SPAWN end,
                            roll_opts(System, Pid)),
+  Procs = System#sys.procs,
   case SpawnOpts of
     [] ->
-      NewSystem = eval_step(System, OtherPid),
-      roll_spawn(NewSystem, Pid, OtherPid);
+      case utils:pid_exists(Procs, OtherPid) of
+        true ->
+          NewSystem = eval_step(System, OtherPid),
+          roll_spawn(NewSystem, Pid, OtherPid, SpawnNode);
+        false ->
+          NodeParentProc = utils:select_proc_with_start(Procs, SpawnNode),
+          #proc{pid = NodeParentPid} = NodeParentProc,
+          NewSystem = eval_step(System, NodeParentPid),
+          roll_spawn(NewSystem, Pid, OtherPid, SpawnNode)
+      end;
     _ ->
       cauder:eval_step(System, hd(SpawnOpts))
   end.
@@ -215,7 +224,7 @@ eval_roll_until_spawn(System, Pid, SpawnPid) ->
   {Proc, _} = utils:select_proc(Procs, Pid),
   [CurHist|_]= Proc#proc.hist,
   case CurHist of
-    {spawn,_,_,ok,_,SpawnPid} ->
+    {spawn,_,_,_,SpawnPid} ->
       eval_step(System, Pid);
     _ ->
       NewSystem = eval_step(System, Pid),

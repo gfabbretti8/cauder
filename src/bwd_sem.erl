@@ -60,17 +60,20 @@ eval_step(System, Pid) ->
           OldTrace = lists:delete(TraceItem, Trace),
           System#sys{procs = [OldProc|RestProcs], trace = OldTrace}
       end;
-    {spawn , OldEnv, OldExp, ok, SpawnNode, SpawnPid} ->
-      {_SpawnProc, OldRestProcs} = utils:select_proc(RestProcs, SpawnPid),
-      OldProc = Proc#proc{hist = RestHist, env = OldEnv, exp = OldExp},
-      TraceItem = #trace{type = ?RULE_SPAWN, from = Pid, fromNode = Node, to = SpawnPid, toNode = SpawnNode, result = ok},
-      OldTrace = lists:delete(TraceItem, Trace),
-      System#sys{msgs = Msgs, procs = [OldProc|OldRestProcs], trace = OldTrace};
-    {spawn , OldEnv, OldExp, error, Time, _} ->
-      OldProc = Proc#proc{hist = RestHist, env = OldEnv, exp = OldExp},
-      TraceItem = #trace{type = ?RULE_SPAWN, from = Pid, fromNode = Node, time = Time, result = error},
-      OldTrace = lists:delete(TraceItem, Trace),
-      System#sys{msgs = Msgs, procs = [OldProc|RestProcs], trace = OldTrace};
+    {spawn , OldEnv, OldExp, SpawnNode, SpawnPid} ->
+      case utils:pid_exists(RestProcs, SpawnPid) of
+        true ->
+          {_SpawnProc, OldRestProcs} = utils:select_proc(RestProcs, SpawnPid),
+          OldProc = Proc#proc{hist = RestHist, env = OldEnv, exp = OldExp},
+          TraceItem = #trace{type = ?RULE_SPAWN, from = Pid, fromNode = Node, to = SpawnPid, toNode = SpawnNode, result = ok},
+          OldTrace = lists:delete(TraceItem, Trace),
+          System#sys{msgs = Msgs, procs = [OldProc|OldRestProcs], trace = OldTrace};
+        false ->
+          OldProc = Proc#proc{hist = RestHist, env = OldEnv, exp = OldExp},
+          TraceItem = #trace{type = ?RULE_SPAWN, from = Pid, fromNode = Node, to = SpawnPid, toNode = SpawnNode, result = error},
+          OldTrace = lists:delete(TraceItem, Trace),
+          System#sys{msgs = Msgs, procs = [OldProc|RestProcs], trace = OldTrace}
+      end;
     {rec, OldEnv, OldExp, OldMsg, OldMail} ->
       OldProc = Proc#proc{hist = RestHist, env = OldEnv, exp = OldExp, mail = OldMail},
       {MsgValue, Time} = OldMsg,
@@ -165,21 +168,27 @@ eval_proc_opt(RestSystem, Nodes, CurProc) ->
               _ -> ?NULL_RULE
             end;
           {start,_,_,{error,_}} -> ?RULE_START;
-          {spawn,_,_,ok,_,SpawnPid} ->
-            {SpawnProc, _RestProcs} = utils:select_proc(RestProcs, SpawnPid),
-            #proc{hist = SpawnHist, mail = SpawnMail} = SpawnProc,
-            case {SpawnHist, SpawnMail} of
-              {[], []} -> ?RULE_SPAWN;
-              _ -> ?NULL_RULE
-            end;
-          {spawn,_,_,error,_,_} -> ?RULE_SPAWN;
-          {rec,_,_, ConsMsg, OldMail} ->
-            Mail = CurProc#proc.mail,
-            case utils:is_queue_minus_msg(OldMail, ConsMsg, Mail) of
-              true -> ?RULE_RECEIVE;
-              false -> ?NULL_RULE
+          {spawn,_,_,SpawnNode,SpawnPid} ->
+            case utils:pid_exists(RestProcs, SpawnPid) of 
+              true -> {SpawnProc, _RestProcs} = utils:select_proc(RestProcs, SpawnPid),
+                      #proc{hist = SpawnHist, mail = SpawnMail} = SpawnProc,
+                      case {SpawnHist, SpawnMail} of
+                        {[], []} -> ?RULE_SPAWN;
+                        _ -> ?NULL_RULE
+                      end;
+              false ->
+                case utils:node_exists(SpawnNode, Nodes) of
+                  true -> ?NULL_RULE;
+                  false -> ?RULE_SPAWN
+                end
+              end;
+              {rec,_,_, ConsMsg, OldMail} ->
+                Mail = CurProc#proc.mail,
+                case utils:is_queue_minus_msg(OldMail, ConsMsg, Mail) of
+                  true -> ?RULE_RECEIVE;
+                  false -> ?NULL_RULE
+                end
             end
-        end
     end,
   case Rule of
     ?NULL_RULE -> ?NULL_OPT;

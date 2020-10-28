@@ -5,7 +5,7 @@
 
 -module(utils).
 -export([fundef_lookup/2, fundef_rename/1, substitute/2,
-         build_var/1, build_var/2, pid_exists/2,
+         build_var/1, build_var/2, pid_exists/2, node_exists/2,
          select_proc/2, select_msg/2,
          select_proc_with_time/2, select_proc_with_send/2, select_proc_with_read/2,
          select_proc_with_spawn/2, select_proc_with_start/2 ,select_proc_with_rec/2,
@@ -116,6 +116,9 @@ build_var(Name,Num) ->
   NumAtom = list_to_atom(NewName ++ "_" ++ integer_to_list(Num)),
   cerl:c_var(NumAtom).
 
+node_exists(Node, Nodes) ->
+  lists:member(Node,Nodes).
+
 pid_exists(Procs, Pid) ->
   case [ P || P <- Procs, P#proc.pid == Pid] of
     [] -> false;
@@ -182,8 +185,7 @@ select_proc_with_spawn(Procs, Pid) ->
   ProcWithSpawn.
 
 %%--------------------------------------------------------------------
-%% @doc Returns the processes that contain a start item in history
-%% with pid Pid
+%% @doc Returns the processes that contain a successful start item
 %% @end
 %%--------------------------------------------------------------------
 select_proc_with_start(Procs, Node) ->
@@ -192,7 +194,7 @@ select_proc_with_start(Procs, Node) ->
                       Hist = Proc#proc.hist,
                       has_start(Hist, Node)
                   end, Procs),
-  ProcWithStart.
+  lists:nth(1,ProcWithStart).
 
 %%--------------------------------------------------------------------
 %% @doc Returns the processes that have performed a nodes after the
@@ -398,7 +400,7 @@ pp_env_1(Env, Exp, Opts) ->
 pp_pair(Var,Val) ->
   pp(Var) ++ " -> " ++ pp(Val).
 
-is_conc_item({spawn,_,_,_,_,_}) -> true;
+is_conc_item({spawn,_,_,_,_}) -> true;
 is_conc_item({send,_,_,_,_}) -> true;
 is_conc_item({rec,_,_,_,_}) -> true;
 is_conc_item({start,_,_,_}) -> true;
@@ -427,7 +429,7 @@ pp_hist_2({node,_,_}) ->
   "node";
 pp_hist_2({nodes,_,_,OldNodes}) ->
   "nodes([" ++ lists:map(fun(Node) -> pp(Node) end, OldNodes) ++ "])";
-pp_hist_2({spawn,_,_,_,_,Pid}) ->
+pp_hist_2({spawn,_,_,_,Pid}) ->
   "spawn(" ++ [{?CAUDER_GREEN, pp(Pid)}] ++ ")";
 pp_hist_2({start,_,_,{ok,SpawnedNode}}) ->
   "start(" ++ pp(SpawnedNode) ++ ")";
@@ -506,8 +508,8 @@ pp_trace_start(From, Start) ->
 
 pp_trace_send(From, To, FromNode, ToNode, Val, Time) when FromNode == ToNode ->
   [pp_pid(From)," sends ",pp(Val)," to ",pp_pid(To)," (",integer_to_list(Time),")"];
-pp_trace_send(From, To, _, ToNode, Val, Time) ->
-  [pp_pid(From)," sends ",pp(Val)," to ",pp_pid(To)," on ",pp(ToNode)," (",integer_to_list(Time),")"].
+pp_trace_send(From, To, FromNode, _ToNode, Val, Time) ->
+  [pp_pid(From)," sends ",pp(Val)," to ",pp_pid(To)," on ",pp(FromNode)," (",integer_to_list(Time),")"].
 
 pp_trace_spawn(From, _, _, _, error) ->
   ["Warning: ",pp_pid(From), " tried to spawn a process on a node that is not connected to the network."];
@@ -676,8 +678,7 @@ has_send([{send,_,_,_,{_,Time}}|_], Time) -> true;
 has_send([_|RestHist], Time) -> has_send(RestHist, Time).
 
 has_spawn([], _) -> false;
-has_spawn([{spawn,_,_,ok,_,Pid}|_], Pid) -> true;
-has_spawn([{spawn,_,_,error,_,Pid}|_], Pid) -> true;
+has_spawn([{spawn,_,_,_,Pid}|_], Pid) -> true;
 has_spawn([_|RestHist], Pid) -> has_spawn(RestHist, Pid).
 
 has_start([], _) -> false;

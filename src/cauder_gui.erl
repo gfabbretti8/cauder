@@ -22,8 +22,8 @@ setup_gui() ->
   wxFrame:show(Frame),
 
   %This part is added so that I will be able to test the code faster
-  ref_add(?LAST_PATH,"/Users/gfabbretti/Developer/erlang/cauder/examples/distributed/start.erl"),
-  loadFile("/Users/gfabbretti/Developer/erlang/cauder/examples/distributed/start.erl"),
+  ref_add(?LAST_PATH,"/Users/gfabbretti/Developer/erlang/cauder/examples/distributed/spawn2.erl"),
+  loadFile("/Users/gfabbretti/Developer/erlang/cauder/examples/distributed/spawn2.erl"),
 %
 
   loop(),

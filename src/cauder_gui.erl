@@ -22,8 +22,8 @@ setup_gui() ->
   wxFrame:show(Frame),
 
   %This part is added so that I will be able to test the code faster
-  ref_add(?LAST_PATH,"/Users/gfabbretti/Developer/erlang/cauder/examples/distributed/spawn2.erl"),
-  loadFile("/Users/gfabbretti/Developer/erlang/cauder/examples/distributed/spawn2.erl"),
+  ref_add(?LAST_PATH,"/Users/gfabbretti/Desktop/test.erl"),
+  loadFile("/Users/gfabbretti/Desktop/test.erl"),
 %
 
   loop(),
@@ -631,9 +631,11 @@ refresh(RefState) ->
           StateText = ref_lookup(?STATE_TEXT),
           TraceText = ref_lookup(?TRACE_TEXT),
           RollLogText = ref_lookup(?ROLL_LOG_TEXT),
-          MarkedText = utils:pp_system(System, ToggleOpts),
-          utils_gui:pp_marked_text(StateText, MarkedText),
-          wxTextCtrl:setValue(TraceText,utils:pp_trace(System)),
+          MarkedSystemText = utils:pp_system(System, ToggleOpts),
+          utils_gui:pp_marked_text(StateText, MarkedSystemText),
+          MarkedTraceText = utils:pp_trace(System),
+          io:format("~n~n~n~p~n~n~n~p~n~n~n",[MarkedSystemText, MarkedTraceText]),
+          utils_gui:pp_marked_text(TraceText, MarkedTraceText),
           wxTextCtrl:setValue(RollLogText,utils:pp_roll_log(System))
       end,
       refresh_buttons(Options),

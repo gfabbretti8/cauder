@@ -499,28 +499,28 @@ pp_trace_item(#trace{type = Type,
   end.
 
 pp_trace_nodes(From) ->
-  [pp_pid(From), " has performed a nodes"].
+  pp_pid(From) ++ " has performed a nodes".
 
 pp_trace_start(From, error) ->
-  ["Warning: ",pp_pid(From)," tried to start a node, but the node already belongs to the network."];
+  [{?wxRED, "Warning: " ++ pp_pid(From) ++ " tried to start a node, but the node already belongs to the network"}] ;
 pp_trace_start(From, Start) ->
-    [pp_pid(From)," starts ",pp(Start)].
+  pp_pid(From) ++ " starts " ++ pp(Start).
 
 pp_trace_send(From, To, FromNode, ToNode, Val, Time) when FromNode == ToNode ->
-  [pp_pid(From)," sends ",pp(Val)," to ",pp_pid(To)," (",integer_to_list(Time),")"];
+  pp_pid(From) ++ " sends " ++ pp(Val) ++ " to " ++ pp_pid(To) ++ " (" ++ integer_to_list(Time) ++ ")";
 pp_trace_send(From, To, FromNode, _ToNode, Val, Time) ->
-  [pp_pid(From)," sends ",pp(Val)," to ",pp_pid(To)," on ",pp(FromNode)," (",integer_to_list(Time),")"].
+  pp_pid(From) ++ " sends " ++ pp(Val) ++ " to " ++ pp_pid(To) ++ " on " ++ pp(FromNode) ++ " (" ++ integer_to_list(Time) ++ ")".
 
 pp_trace_spawn(From, _, _, _, error) ->
-  ["Warning: ",pp_pid(From), " tried to spawn a process on a node that is not connected to the network."];
+  [{?wxRED, "Warning: " ++ pp_pid(From) ++  " tried to spawn a process on a node that is not connected to the network"}];
 pp_trace_spawn(From, Node, To, Node, ok) ->%when the node is the same we omit the info
-  [pp_pid(From)," spawns ",pp_pid(To)];
+  pp_pid(From) ++ " spawns " ++ pp_pid(To);
 pp_trace_spawn(From, _, To, Node, ok) ->
-  [pp_pid(From), " spawns ",pp_pid(To)," on ",pp(Node)].
+  pp_pid(From) ++  " spawns " ++ pp_pid(To) ++ " on " ++ pp(Node).
 
 
 pp_trace_receive(From, Val, Time) ->
-  [pp_pid(From)," receives ",pp(Val)," (",integer_to_list(Time),")"].
+  pp_pid(From) ++ " receives " ++ pp(Val) ++ " (" ++ integer_to_list(Time) ++ ")".
 
 %%--------------------------------------------------------------------
 %% @doc Prints a given system roll log

@@ -102,17 +102,23 @@ roll_start(System, Pid, SpawnNode) ->
     [] ->
       AllProcs = System#sys.procs,
       case utils:select_procs_from_node(AllProcs, SpawnNode) of
-        [] ->% start cannot roll either because procs are running or because of nodes,
-             % if we enter here it means that someone did a nodes after the start
-          OtherProc = hd(utils:select_proc_with_read(AllProcs, SpawnNode)),
-          #proc{pid = OtherPid} = OtherProc,
-          NewSystem = eval_step(System, OtherPid),
-          roll_start(NewSystem, Pid, SpawnNode);
+        [] ->% start cannot roll either because procs are running or because of nodes or because of a failed start,
+          case utils:select_proc_with_failed_start(AllProcs, SpawnNode) of
+            [] ->
+              OtherProc = hd(utils:select_proc_with_read(AllProcs, SpawnNode)),
+              #proc{pid = OtherPid} = OtherProc,
+              NewSystem = eval_step(System, OtherPid),
+              roll_start(NewSystem, Pid, SpawnNode);
+            [OtherProc|_] ->
+              #proc{pid = OtherPid} = OtherProc,
+              NewSystem = eval_step(System, OtherPid),
+              roll_start(NewSystem, Pid, SpawnNode)
+          end;
         [OtherProc|_] ->
           #proc{pid = OtherPid} = OtherProc,
           NewSystem = eval_step(System, OtherPid),
           roll_start(NewSystem, Pid, SpawnNode)
-        end;
+      end;
     _ ->
       cauder:eval_step(System, hd(StartOpts))
   end.
@@ -152,7 +158,7 @@ can_roll_start(System, SpawnNode) ->
   Procs = System#sys.procs,
   ProcsWithStart = utils:select_proc_with_start(Procs, SpawnNode),
   case length(ProcsWithStart) of
-    0 -> io:format("Male ~n~n~n"),false;
+    0 -> false;
     _ -> true
   end.
 

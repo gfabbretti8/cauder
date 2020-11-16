@@ -69,7 +69,6 @@ button_to_option(Button) ->
 
 option_to_button_label(Option) ->
   #opt{sem = Sem, type = Type} = Option,
-  io:format("Options: ~p~n", [Option]),
   Label = get_label_from_option(Option),
   Button =
     case Sem of

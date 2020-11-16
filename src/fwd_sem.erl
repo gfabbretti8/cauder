@@ -375,7 +375,7 @@ eval_step(System, Pid) ->
             ErrorMessage = lists:concat(['Error: ', cerl:concrete(NewNode), ' is already part of the network.\n']),
             CErrorMessage = cerl:c_atom(list_to_atom(ErrorMessage)),
             RepExp = utils:replace(Var, cerl:c_tuple([ErrAtom,CErrorMessage]), NewExp),
-            NewHist = [{start, Env, Exp, {error, Time}}|Hist],
+            NewHist = [{start, Env, Exp, {error, NewNode, Time}}|Hist],
             NewProc = Proc#proc{hist = NewHist, exp = RepExp},
             TraceItem = #trace{type = ?RULE_START, from = Pid, start = error, time = Time};
           false ->

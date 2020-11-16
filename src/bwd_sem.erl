@@ -45,21 +45,17 @@ eval_step(System, Pid) ->
       TraceItem = #trace{type = ?RULE_SEND, from = Pid, fromNode = Node, to = DestPid, toNode = DestNode, val = MsgValue, time = Time},
       OldTrace = lists:delete(TraceItem, Trace),
       System#sys{msgs = RestMsgs, procs = [OldProc|RestProcs], trace = OldTrace};
-    {start, OldEnv, OldExp, {Result,NodeOrTime}} ->
+    {start, OldEnv, OldExp, {ok ,SpawnNode}} ->
       OldProc = Proc#proc{hist = RestHist, env = OldEnv, exp = OldExp},
-      case Result of
-        ok ->
-          SpawnNode = NodeOrTime,
           OldNodes = Nodes -- [SpawnNode],
           TraceItem = #trace{type = ?RULE_START, from = Pid, start = SpawnNode},
           OldTrace = lists:delete(TraceItem, Trace),
           System#sys{procs = [OldProc|RestProcs], nodes = OldNodes, trace = OldTrace};
-        error ->
-          Time = NodeOrTime,
-          TraceItem = #trace{type = ?RULE_START, from = Pid, start = error, time = Time},
-          OldTrace = lists:delete(TraceItem, Trace),
-          System#sys{procs = [OldProc|RestProcs], trace = OldTrace}
-      end;
+    {start, OldEnv, OldExp, {error ,_,Time}} ->
+      OldProc = Proc#proc{hist = RestHist, env = OldEnv, exp = OldExp},
+      TraceItem = #trace{type = ?RULE_START, from = Pid, start = error, time = Time},
+      OldTrace = lists:delete(TraceItem, Trace),
+      System#sys{procs = [OldProc|RestProcs], trace = OldTrace};
     {spawn , OldEnv, OldExp, SpawnNode, SpawnPid} ->
       case utils:pid_exists(RestProcs, SpawnPid) of
         true ->
@@ -162,12 +158,16 @@ eval_proc_opt(RestSystem, Nodes, CurProc) ->
             case utils:select_procs_from_node(RestProcs, StartedNode) of
               [] ->
                 case utils:select_proc_with_read(RestProcs, StartedNode) of
-                  [] -> ?RULE_START;
+                  [] ->
+                      case utils:select_proc_with_failed_start(RestProcs, StartedNode) of
+                      [] -> ?RULE_START;
+                      _ -> ?NULL_RULE
+                    end;
                   _ -> ?NULL_RULE
                   end;
               _ -> ?NULL_RULE
             end;
-          {start,_,_,{error,_}} -> ?RULE_START;
+          {start,_,_,{error,_,_}} -> ?RULE_START;
           {spawn,_,_,SpawnNode,SpawnPid} ->
             case utils:pid_exists(RestProcs, SpawnPid) of 
               true -> {SpawnProc, _RestProcs} = utils:select_proc(RestProcs, SpawnPid),

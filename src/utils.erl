@@ -8,7 +8,8 @@
          build_var/1, build_var/2, pid_exists/2, node_exists/2,
          select_proc/2, select_msg/2,
          select_proc_with_time/2, select_proc_with_send/2, select_proc_with_read/2,
-         select_proc_with_spawn/2, select_proc_with_start/2 ,select_proc_with_rec/2,
+         select_proc_with_spawn/2, select_proc_with_start/2,
+         select_proc_with_failed_start/2 ,select_proc_with_rec/2,
          select_proc_with_var/2, select_procs_from_node/2, list_from_core/1,
          update_env/2, merge_env/2,
          replace/3, replace_all/2, pp_system/2, pp_trace/1, pp_roll_log/1,
@@ -194,7 +195,19 @@ select_proc_with_start(Procs, Node) ->
                       Hist = Proc#proc.hist,
                       has_start(Hist, Node)
                   end, Procs),
-  lists:nth(1,ProcWithStart).
+  ProcWithStart.
+
+%%--------------------------------------------------------------------
+%% @doc Returns the processes that contain a failed start item
+%% @end
+%%--------------------------------------------------------------------
+select_proc_with_failed_start(Procs, Node) ->
+  ProcWithFailedStart =
+    lists:filter( fun (Proc) ->
+                      Hist = Proc#proc.hist,
+                      has_failed_start(Hist, Node)
+                  end, Procs),
+  ProcWithFailedStart.
 
 %%--------------------------------------------------------------------
 %% @doc Returns the processes that have performed a nodes after the
@@ -207,7 +220,6 @@ select_proc_with_read(Procs, Node) ->
                      Hist = Proc#proc.hist,
                      has_read(Hist, Node, false)
                  end, Procs),
-  io:format("Proc with read: ~p~n", [ProcsWithRead]),
   ProcsWithRead.
 
 %%--------------------------------------------------------------------
@@ -433,7 +445,7 @@ pp_hist_2({spawn,_,_,_,Pid}) ->
   "spawn(" ++ [{?CAUDER_GREEN, pp(Pid)}] ++ ")";
 pp_hist_2({start,_,_,{ok,SpawnedNode}}) ->
   "start(" ++ pp(SpawnedNode) ++ ")";
-pp_hist_2({start,_,_,{error,_}}) ->
+pp_hist_2({start,_,_,{error,_,_}}) ->
   "start(error)";
 pp_hist_2({send,_,_,_,{Value,Time}}) ->
   "send(" ++ pp(Value) ++ "," ++ [{?wxRED, integer_to_list(Time)}] ++ ")";
@@ -684,6 +696,10 @@ has_spawn([_|RestHist], Pid) -> has_spawn(RestHist, Pid).
 has_start([], _) -> false;
 has_start([{start,_,_,{ok, Node}}|_], Node) -> true;
 has_start([_|RestHist], Node) -> has_start(RestHist, Node).
+
+has_failed_start([], _) -> false;
+has_failed_start([{start,_,_,{error, Node, _}}|_], Node) -> true;
+has_failed_start([_|RestHist], Node) -> has_failed_start(RestHist, Node).
 
 has_read([],_,Result) -> Result;
 has_read([{nodes,_,_,Nodes}|RestHist], Node,Result) ->

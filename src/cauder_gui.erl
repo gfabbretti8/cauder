@@ -22,9 +22,9 @@ setup_gui() ->
   wxFrame:show(Frame),
 
   %This part is added so that I will be able to test the code faster
-  ref_add(?LAST_PATH,"/Users/gfabbretti/Desktop/test.erl"),
-  loadFile("/Users/gfabbretti/Desktop/test.erl"),
-%
+  ref_add(?LAST_PATH,"/Users/gfabbretti/Developer/erlang/cauder/examples/distributed/race.erl"),
+  loadFile("/Users/gfabbretti/Developer/erlang/cauder/examples/distributed/race.erl"),
+                                                %
 
   loop(),
   utils_gui:stop_refs(),
@@ -634,7 +634,6 @@ refresh(RefState) ->
           MarkedSystemText = utils:pp_system(System, ToggleOpts),
           utils_gui:pp_marked_text(StateText, MarkedSystemText),
           MarkedTraceText = utils:pp_trace(System),
-          io:format("~n~n~n~p~n~n~n~p~n~n~n",[MarkedSystemText, MarkedTraceText]),
           utils_gui:pp_marked_text(TraceText, MarkedTraceText),
           wxTextCtrl:setValue(RollLogText,utils:pp_roll_log(System))
       end,
